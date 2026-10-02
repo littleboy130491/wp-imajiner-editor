@@ -39,13 +39,19 @@ do_action( 'tha_html_before' );
 			</div>
 
 			<?php if ( has_nav_menu( 'primary' ) ) : ?>
-				<nav class="site-nav" aria-label="<?php esc_attr_e( 'Primary', 'imajiner' ); ?>">
+				<nav class="site-nav" data-imajiner-navigation aria-label="<?php esc_attr_e( 'Primary', 'imajiner' ); ?>">
+					<button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="imajiner-primary-menu" hidden>
+						<span aria-hidden="true">☰</span>
+						<?php echo esc_html__( 'Menu', 'imajiner-editor' ); ?>
+					</button>
 					<?php
 					wp_nav_menu(
 						array(
 							'theme_location' => 'primary',
 							'container'      => false,
 							'menu_class'     => 'site-nav__menu',
+							'menu_id'        => 'imajiner-primary-menu',
+							'fallback_cb'    => false,
 							'depth'          => 2,
 						)
 					);

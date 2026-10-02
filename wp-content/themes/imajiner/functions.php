@@ -20,6 +20,7 @@ define( 'IMAJINER_TEMPLATE_DIR', 'imajiner' );
 
 require_once get_template_directory() . '/inc/parts.php';
 require_once get_template_directory() . '/inc/locations.php';
+require_once get_template_directory() . '/inc/design-system.php';
 
 /**
  * Registers theme supports and menu locations.
@@ -31,6 +32,12 @@ function imajiner_setup() {
 	add_theme_support( 'post-thumbnails' );
 	add_theme_support( 'custom-logo' );
 	add_theme_support( 'responsive-embeds' );
+	add_theme_support( 'editor-styles' );
+	add_theme_support( 'align-wide' );
+	add_editor_style( array( get_template_directory_uri() . '/assets/css/base.css', get_template_directory_uri() . '/assets/css/editor.css' ) );
+	if ( is_child_theme() ) {
+		add_editor_style( array( get_stylesheet_uri(), 'editor.css' ) );
+	}
 
 	// Theme Hook Alliance hooks (tha_header_before, tha_footer_before, …), fired from the templates.
 	add_theme_support( 'tha_hooks', array( 'all' ) );
@@ -64,11 +71,14 @@ function imajiner_current_template_slug() {
  * Enqueues the base styles, the child theme stylesheet and the current template's CSS.
  */
 function imajiner_enqueue_assets() {
-	wp_enqueue_style( 'imajiner-base', get_template_directory_uri() . '/assets/css/base.css', array(), IMAJINER_VERSION );
+	wp_enqueue_style( 'imajiner-base', get_template_directory_uri() . '/assets/css/base.css', array(), (string) filemtime( get_template_directory() . '/assets/css/base.css' ) );
+	wp_enqueue_script( 'imajiner-navigation', get_template_directory_uri() . '/assets/js/navigation.js', array( 'wp-i18n' ), (string) filemtime( get_template_directory() . '/assets/js/navigation.js' ), true );
+	wp_set_script_translations( 'imajiner-navigation', 'imajiner-editor' );
 
 	if ( is_child_theme() ) {
 		wp_enqueue_style( 'imajiner-child', get_stylesheet_uri(), array( 'imajiner-base' ), wp_get_theme()->get( 'Version' ) );
 	}
+	imajiner_enqueue_design_tokens();
 
 	$slug = imajiner_current_template_slug();
 	if ( ! $slug ) {
@@ -76,6 +86,9 @@ function imajiner_enqueue_assets() {
 	}
 
 	$templates = imajiner_get_templates();
+	if ( ! isset( $templates[ $slug ] ) ) {
+		return;
+	}
 	$path      = imajiner_css_file( $templates[ $slug ]['file'] );
 	if ( file_exists( $path ) ) {
 		// Version by mtime so edits saved from the editor bust the browser cache.
