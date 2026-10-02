@@ -51,6 +51,7 @@ defined( 'ABSPATH' ) || exit;
 <div class="imj-layout">
 	<aside class="imj-panel">
 		<h2 class="imj-panel__title"><?php esc_html_e( 'Layers', 'imajiner-editor' ); ?></h2>
+		<button type="button" id="imj-add-section" class="imj-button imj-add-section"><?php esc_html_e( 'Add blank section', 'imajiner-editor' ); ?></button>
 		<div id="imj-warnings"></div>
 		<div id="imj-tree" class="imj-tree"></div>
 	</aside>

@@ -7,12 +7,12 @@ Run from the repository root:
 ```sh
 IMAJINER_TEST_SITE=1 php -d mysqli.default_socket=/var/run/mysqld/mysqld.sock \
   /usr/bin/phpunit --bootstrap wp-content/plugins/imajiner-editor/tests/bootstrap.php \
-  wp-content/plugins/imajiner-editor/tests/GenerationTest.php
+  wp-content/plugins/imajiner-editor/tests
 ```
 
 Set `WP_TEST_ROOT` if WordPress core is installed elsewhere. The explicit `IMAJINER_TEST_SITE` flag prevents accidentally running the suite against an ordinary installation. Tests create uniquely named throwaway templates, pages, users and proposals, remove them afterwards, and restore AI settings. The reference `page-example.php` is never written.
 
-These tests exercise generation, one corrective retry, confirmation, assignments, revision snapshots, stale PHP/CSS conflicts, permissions, expiry, user/theme ownership, invalid response handling and CSS scoping. They do not call real providers or drive the browser.
+These tests exercise generation, one corrective retry, confirmation, assignments, structural changes, ordered staging, revision snapshots, stale PHP/CSS conflicts, permissions, expiry, user/theme ownership, invalid response handling and CSS scoping. They do not call real providers or drive the browser.
 
 ## Syntax and JavaScript lint
 

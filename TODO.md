@@ -20,7 +20,7 @@ What's already done is listed under "Status" in `AGENTS.md`.
 
 ## Editor
 
-- [ ] **P1** Add, delete, duplicate and reorder elements and sections (drag and drop in the layers tree and preview)
+- [x] **P1** Add, delete, duplicate and reorder elements and sections (drag and drop in the layers tree and preview)
 - [ ] **P1** Add a new section from a library of ready-made, contract-following sections (hero, features, CTA, …)
 - [ ] **P1** Undo / redo for unsaved changes
 - [ ] **P2** Edit text directly in the preview (inline editing) instead of only in the properties panel

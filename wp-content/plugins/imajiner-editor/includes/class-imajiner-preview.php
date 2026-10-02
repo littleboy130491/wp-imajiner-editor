@@ -34,7 +34,7 @@ class Imajiner_Preview {
 		add_filter( 'template_include', array( __CLASS__, 'template_include' ), 99 );
 		add_filter( 'imajiner_part_file', array( __CLASS__, 'part_file' ), 10, 2 );
 		add_filter( 'show_admin_bar', array( __CLASS__, 'show_admin_bar' ) );
-		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 30 );
 	}
 
 	/**
@@ -107,6 +107,7 @@ class Imajiner_Preview {
 		if ( ! $current ) {
 			return $template;
 		}
+		nocache_headers();
 
 		if ( 'part' === $current['type'] ) {
 			return IMAJINER_EDITOR_DIR . 'views/part-preview.php';
@@ -147,13 +148,51 @@ class Imajiner_Preview {
 	 * Loads the selection script and styles inside the preview.
 	 */
 	public static function enqueue_assets() {
-		if ( ! self::current() ) {
+		$current = self::current();
+		if ( ! $current ) {
 			return;
+		}
+		$files = self::stage( $current );
+		if ( $files ) {
+			wp_dequeue_style( ( 'part' === $current['type'] ? 'imajiner-part-' : 'imajiner-template-' ) . $current['slug'] );
+			wp_register_style( 'imajiner-stage', false, array( 'imajiner-base' ) );
+			wp_enqueue_style( 'imajiner-stage' );
+			wp_add_inline_style( 'imajiner-stage', $files['css'] );
 		}
 
 		wp_enqueue_style( 'imajiner-preview', IMAJINER_EDITOR_URL . 'assets/css/preview.css', array(), IMAJINER_EDITOR_VERSION );
 		wp_enqueue_script( 'imajiner-preview', IMAJINER_EDITOR_URL . 'assets/js/preview.js', array(), IMAJINER_EDITOR_VERSION, true );
 		wp_localize_script( 'imajiner-preview', 'imajinerPreview', array( 'editorOrigin' => Imajiner_Editor::origin( admin_url() ) ) );
+	}
+
+	/** Returns a user-owned staged file pair while its original is current. */
+	public static function staged_files( array $template, $id ) {
+		$stage = is_string( $id ) && preg_match( '/^[a-f0-9-]{36}$/', $id ) ? get_transient( 'imajiner_stage_' . get_current_user_id() . '_' . $id ) : false;
+		if ( ! $stage || $stage['key'] !== $template['key'] ) {
+			return new WP_Error( 'imajiner_stage_expired', __( 'This preview expired. Make another edit to refresh it.', 'imajiner-editor' ), array( 'status' => 410 ) );
+		}
+		$files = Imajiner_Template_Store::read( $template['file'] );
+		if ( is_wp_error( $files ) ) {
+			return $files;
+		}
+		if ( $stage['stylesheet'] !== get_stylesheet() || $stage['hash'] !== Imajiner_Template_Store::hash( $files ) ) {
+			return new WP_Error( 'imajiner_stage_conflict', __( 'The theme or template changed. Reload the editor.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		return $stage['files'];
+	}
+
+	private static function stage( array $template ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- current() verifies the preview nonce and capability.
+		if ( ! isset( $_GET['imajiner_stage'] ) ) {
+			return null;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$files = self::staged_files( $template, wp_unslash( $_GET['imajiner_stage'] ) );
+		if ( is_wp_error( $files ) ) {
+			$data = $files->get_error_data();
+			wp_die( esc_html( $files->get_error_message() ), '', array( 'response' => is_array( $data ) && isset( $data['status'] ) ? $data['status'] : 500 ) );
+		}
+		return $files;
 	}
 
 	/**
@@ -263,22 +302,36 @@ class Imajiner_Preview {
 			return false;
 		}
 
-		$source = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$stage = self::stage( self::current() );
+		$source = $stage ? $stage['php'] : file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		// Prefix with the path so a part and a template with the same file name don't collide.
 		$prefix = substr( md5( $path ), 0, 8 ) . '-' . basename( $path, '.php' );
+		if ( $stage ) {
+			$prefix .= '-stage-' . get_current_user_id();
+		}
 		$file   = $dir . $prefix . '-' . md5( $source . IMAJINER_EDITOR_VERSION ) . '.php';
 
 		if ( file_exists( $file ) ) {
+			if ( $stage ) {
+				register_shutdown_function( 'wp_delete_file', $file );
+			}
 			return $file;
 		}
 
 		foreach ( (array) glob( $dir . $prefix . '-*.php' ) as $stale ) {
-			wp_delete_file( $stale );
+			if ( ! $stage && false === strpos( basename( $stale ), '-stage-' ) ) {
+				wp_delete_file( $stale );
+			} elseif ( filemtime( $stale ) < time() - HOUR_IN_SECONDS ) {
+				wp_delete_file( $stale );
+			}
 		}
 
 		$scanner = new Imajiner_Template_Scanner( $source );
 		// The guard stops the copy doing anything if it's requested directly.
 		$written = file_put_contents( $file, "<?php defined( 'ABSPATH' ) || exit; ?>" . $scanner->get_instrumented_source() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		if ( false !== $written && $stage ) {
+			register_shutdown_function( 'wp_delete_file', $file );
+		}
 
 		return false === $written ? false : $file;
 	}

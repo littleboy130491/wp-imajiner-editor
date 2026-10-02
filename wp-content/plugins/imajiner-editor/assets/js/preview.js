@@ -11,6 +11,37 @@
 
 	const editorOrigin = config.editorOrigin;
 	let hovered = null;
+	let dragNodes = new Map();
+	let draggedId = null;
+
+	document.addEventListener( 'dragstart', ( event ) => {
+		const element = event.target.closest( '[data-imj-id]' );
+		const node = element && dragNodes.get( element.dataset.imjId );
+		if ( ! node || ! node.draggable ) {
+			event.preventDefault();
+			return;
+		}
+		draggedId = node.id;
+		event.dataTransfer.setData( 'text/plain', node.id );
+		event.dataTransfer.effectAllowed = 'move';
+	} );
+	document.addEventListener( 'dragover', ( event ) => {
+		if ( draggedId && event.target.closest( '[data-imj-id]' ) ) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'move';
+		}
+	} );
+	document.addEventListener( 'drop', ( event ) => {
+		event.preventDefault();
+		const element = event.target.closest( '[data-imj-id]' );
+		const target = element && dragNodes.get( element.dataset.imjId );
+		if ( draggedId && target ) {
+			const bounds = element.getBoundingClientRect();
+			send( { type: 'imj:move', id: draggedId, target: target.id, position: event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after' } );
+		}
+		draggedId = null;
+	} );
+	document.addEventListener( 'dragend', () => { draggedId = null; } );
 
 	function send( message ) {
 		window.parent.postMessage( message, editorOrigin );
@@ -144,6 +175,10 @@
 		}
 
 		switch ( event.data.type ) {
+			case 'imj:drag-config':
+				dragNodes = new Map( event.data.nodes.map( ( node ) => [ node.element, node ] ) );
+				event.data.nodes.forEach( ( node ) => elements( node.element ).forEach( ( element ) => { element.draggable = node.draggable; } ) );
+				break;
 			case 'imj:highlight':
 				highlight( event.data.ids, event.data.scroll );
 				break;
