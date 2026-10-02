@@ -25,6 +25,7 @@ class Imajiner_Builder {
 	public static function init() {
 		Imajiner_Template_Manager::init();
 		add_filter( 'imajiner_part_visible', array( __CLASS__, 'preview_part_visibility' ), 10, 2 );
+		add_filter( 'imajiner_part_enqueue_style', array( __CLASS__, 'preview_part_style' ), 10, 2 );
 		add_action( 'admin_menu', array( __CLASS__, 'add_page' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'ai_page_link' ) );
 		add_action( 'admin_post_imajiner_create_template', array( __CLASS__, 'create_template' ) );
@@ -36,6 +37,15 @@ class Imajiner_Builder {
 	public static function preview_part_visibility( $visible, $part ) {
 		$preview = Imajiner_Preview::current();
 		return $preview && 'part' === $preview['type'] && $preview['slug'] === $part['slug'] ? true : $visible;
+	}
+
+	public static function preview_part_style( $enqueue, $part ) {
+		$preview = Imajiner_Preview::current();
+		if ( ! $preview || 'part' !== $preview['type'] || $preview['slug'] !== $part['slug'] || ! isset( $_GET['imajiner_stage'] ) ) {
+			return $enqueue;
+		}
+		$files = Imajiner_Preview::staged_files( $preview, wp_unslash( $_GET['imajiner_stage'] ) );
+		return is_wp_error( $files ) ? $enqueue : false;
 	}
 
 	public static function save_part_conditions() {

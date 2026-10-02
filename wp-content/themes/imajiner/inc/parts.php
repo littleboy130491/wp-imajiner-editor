@@ -229,6 +229,9 @@ function imajiner_file_uri( $file ) {
  * loader immediately, including calls after the footer and editor previews.
  */
 function imajiner_enqueue_part_style( array $part ) {
+	if ( ! apply_filters( 'imajiner_part_enqueue_style', true, $part ) ) {
+		return;
+	}
 	$css = imajiner_css_file( $part['file'] );
 	if ( file_exists( $css ) ) {
 		$handle = 'imajiner-part-' . $part['slug'];

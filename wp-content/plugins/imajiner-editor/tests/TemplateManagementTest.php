@@ -366,4 +366,34 @@ final class TemplateManagementTest extends TestCase {
 		self::assertStringContainsString( $fixture['slug'] . '.css', $output );
 		self::assertStringContainsString( 'data-imj-id=', $output );
 	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function testStagedPartPreviewDoesNotReloadTheOriginalStylesheet(): void {
+		$fixture = $this->fixture( 'staged-preview', '', true );
+		self::assertTrue( Imajiner_Builder::update_part_conditions( $fixture['key'], $this->hash( $fixture ), array( 'exclude' => array( 'front-page' ) ) ) );
+		$files = Imajiner_Template_Store::read( $fixture['path'] );
+		$staged = array( 'php' => str_replace( 'Part fixture', 'Staged fixture', $files['php'] ), 'css' => '.imj-part-' . $fixture['slug'] . ' .banner { color: var(--imj-color-secondary); }' );
+		$id = wp_generate_uuid4();
+		$transient = 'imajiner_stage_' . $this->user . '_' . $id;
+		set_transient( $transient, array( 'key' => $fixture['key'], 'stylesheet' => get_stylesheet(), 'hash' => Imajiner_Template_Store::hash( $files ), 'files' => $staged ), MINUTE_IN_SECONDS );
+		$_GET[ Imajiner_Preview::QUERY_VAR ] = wp_create_nonce( Imajiner_Preview::QUERY_VAR . '_' . $fixture['key'] );
+		$_GET[ Imajiner_Preview::TEMPLATE_VAR ] = $fixture['key'];
+		$_GET['imajiner_stage'] = $id;
+		$this->query( array( 'page_id' => $this->front ) );
+		try {
+			ob_start();
+			include IMAJINER_EDITOR_DIR . 'views/part-preview.php';
+			$output = ob_get_clean();
+			self::assertStringContainsString( 'Staged fixture', $output );
+			self::assertStringContainsString( $staged['css'], $output );
+			self::assertStringNotContainsString( $fixture['slug'] . '.css', $output );
+			self::assertFalse( wp_style_is( 'imajiner-part-' . $fixture['slug'], 'enqueued' ) );
+		} finally {
+			delete_transient( $transient );
+			unset( $_GET['imajiner_stage'] );
+		}
+	}
 }
