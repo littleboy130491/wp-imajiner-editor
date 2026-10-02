@@ -13,11 +13,74 @@
 	let hovered = null;
 	let dragNodes = new Map();
 	let draggedId = null;
+	const __ = window.wp.i18n.__;
+	const comments = document.createTreeWalker( document.body, NodeFilter.SHOW_COMMENT );
+	const markers = [];
+	while ( comments.nextNode() ) {
+		if ( /^imj-text:t\d+$/.test( comments.currentNode.data ) ) {
+			markers.push( comments.currentNode );
+		}
+	}
+	markers.forEach( ( marker ) => {
+		const text = marker.nextSibling;
+		const end = text && text.nextSibling;
+		if ( ! text || text.nodeType !== Node.TEXT_NODE || ! end || end.nodeType !== Node.COMMENT_NODE || end.data !== '/imj-text' ) {
+			return;
+		}
+		const span = document.createElement( 'span' );
+		span.dataset.imjText = marker.data.slice( 9 );
+		span.className = 'imj-inline-text';
+		span.title = __( 'Double-click to edit text', 'imajiner-editor' );
+		text.before( span );
+		span.append( text );
+		marker.remove();
+		end.remove();
+	} );
+
+	document.addEventListener( 'dblclick', ( event ) => {
+		const span = event.target.closest( '[data-imj-text]' );
+		if ( ! span || ! inlineEnabled ) {
+			return;
+		}
+		event.preventDefault();
+		span.dataset.original = span.textContent;
+		span.contentEditable = 'plaintext-only';
+		span.setAttribute( 'role', 'textbox' );
+		span.setAttribute( 'aria-label', __( 'Edit text', 'imajiner-editor' ) );
+		span.focus();
+	} );
+	let inlineEnabled = false;
+	document.addEventListener( 'focusout', ( event ) => {
+		const span = event.target.closest( '[data-imj-text][contenteditable]' );
+		if ( ! span ) {
+			return;
+		}
+		const value = span.textContent.trim();
+		if ( value ) {
+			span.textContent = span.dataset.original.match( /^\s*/ )[0] + value + span.dataset.original.match( /\s*$/ )[0];
+			send( { type: 'imj:text-edited', id: span.dataset.imjText, value } );
+		} else {
+			span.textContent = span.dataset.original;
+		}
+		span.removeAttribute( 'contenteditable' );
+		span.removeAttribute( 'role' );
+		span.removeAttribute( 'aria-label' );
+	} );
+	document.addEventListener( 'keydown', ( event ) => {
+		const span = event.target.closest( '[data-imj-text][contenteditable]' );
+		if ( span && ( event.key === 'Escape' || event.key === 'Enter' ) ) {
+			event.preventDefault();
+			if ( event.key === 'Escape' ) {
+				span.textContent = span.dataset.original;
+			}
+			span.blur();
+		}
+	} );
 
 	document.addEventListener( 'dragstart', ( event ) => {
 		const element = event.target.closest( '[data-imj-id]' );
 		const node = element && dragNodes.get( element.dataset.imjId );
-		if ( ! node || ! node.draggable ) {
+		if ( event.target.closest( '[contenteditable]' ) || ! node || ! node.draggable ) {
 			event.preventDefault();
 			return;
 		}
@@ -70,6 +133,9 @@
 	document.addEventListener(
 		'click',
 		( event ) => {
+			if ( event.target.closest( '[contenteditable]' ) ) {
+				return;
+			}
 			event.preventDefault();
 			event.stopPropagation();
 			const target = event.target.closest( '[data-imj-id]' );
@@ -170,11 +236,20 @@
 	}
 
 	window.addEventListener( 'message', ( event ) => {
-		if ( event.origin !== editorOrigin || ! event.data ) {
+		if ( event.source !== window.parent || event.origin !== editorOrigin || ! event.data ) {
 			return;
 		}
 
 		switch ( event.data.type ) {
+			case 'imj:inline-config':
+				inlineEnabled = event.data.enabled;
+				break;
+			case 'imj:text':
+				document.querySelectorAll( '[data-imj-text="' + window.CSS.escape( event.data.id ) + '"]' ).forEach( ( span ) => {
+					const current = span.textContent;
+					span.textContent = ( current.match( /^\s*/ )[0] ) + event.data.text + ( current.match( /\s*$/ )[0] );
+				} );
+				break;
 			case 'imj:drag-config':
 				dragNodes = new Map( event.data.nodes.map( ( node ) => [ node.element, node ] ) );
 				event.data.nodes.forEach( ( node ) => elements( node.element ).forEach( ( element ) => { element.draggable = node.draggable; } ) );

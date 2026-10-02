@@ -246,7 +246,63 @@ class Imajiner_Template_Scanner {
 			$processor->set_attribute( 'data-imj-id', 'e' . $elements++ );
 		}
 
-		return $this->unmask( $processor->get_updated_html() );
+		$text_processor = new Imajiner_Source_Processor( $processor->get_updated_html() );
+		$html = $processor->get_updated_html();
+		$replacements = array();
+		$texts = 0;
+		while ( $text_processor->next_token() ) {
+			if ( '#text' !== $text_processor->get_token_type() || '' === trim( $text_processor->get_modifiable_text() ) ) {
+				continue;
+			}
+			$span = $text_processor->span();
+			$literal = substr( $html, $span['start'], $span['end'] - $span['start'] );
+			$replacements[] = array( $span, '<!--imj-text:t' . $texts++ . '-->' . $literal . '<!--/imj-text-->' );
+		}
+		foreach ( array_reverse( $replacements ) as $replacement ) {
+			$html = substr_replace( $html, $replacement[1], $replacement[0]['start'], $replacement[0]['end'] - $replacement[0]['start'] );
+		}
+		return $this->unmask( $html );
+	}
+
+	public function get_node_source( $id ) {
+		if ( ! $this->spans ) {
+			$this->get_structure();
+		}
+		if ( ! is_string( $id ) || ! isset( $this->spans[ $id ] ) ) {
+			return new WP_Error( 'imajiner_unknown_node', __( 'Select an element or section.', 'imajiner-editor' ) );
+		}
+		$span = $this->spans[ $id ];
+		return $this->unmask( substr( $this->masked, $span['start'], $span['end'] - $span['start'] ) );
+	}
+
+	public function replace_node( $id, $markup ) {
+		return $this->apply_structure( array( 'type' => 'replace', 'id' => $id, 'markup' => $markup ) );
+	}
+
+	public function change_source( array $change ) {
+		$id = isset( $change['id'] ) ? $change['id'] : '';
+		$kind = isset( $change['source'] ) ? $change['source'] : '';
+		if ( ! is_string( $id ) || ! preg_match( '/^p(\d+)$/', $id, $match ) || ! isset( $this->php[ (int) $match[1] ] ) ) {
+			return new WP_Error( 'imajiner_source', __( 'Unknown dynamic value.', 'imajiner-editor' ) );
+		}
+		$number = (int) $match[1];
+		$block = $this->php[ $number ];
+		$code = preg_replace( '/\s+/', '', $block['source'] );
+		$allowed = '/^<\?php(?:the_title\(\)|the_excerpt\(\)|echo(?:get_field\([\'\"][a-zA-Z0-9_-]+[\'\"]\)|esc_html\((?:get_the_title\(\)|get_the_excerpt\(\)|get_field\([\'\"][a-zA-Z0-9_-]+[\'\"]\)|get_post_meta\(get_the_ID\(\),[\'\"][a-zA-Z0-9_-]+[\'\"],true\))\)));?\?>$/';
+		if ( 'text' !== $block['context'] || ! preg_match( $allowed, $code ) ) {
+			return new WP_Error( 'imajiner_source', __( 'This PHP block is read-only.', 'imajiner-editor' ) );
+		}
+		if ( 'title' === $kind ) {
+			$source = '<?php echo esc_html( get_the_title() ); ?>';
+		} elseif ( 'excerpt' === $kind ) {
+			$source = '<?php echo esc_html( get_the_excerpt() ); ?>';
+		} elseif ( 'custom-field' === $kind && isset( $change['field'] ) && is_string( $change['field'] ) && preg_match( '/^[a-zA-Z0-9_-]{1,100}$/', $change['field'] ) ) {
+			$source = "<?php echo esc_html( get_post_meta( get_the_ID(), '" . $change['field'] . "', true ) ); ?>";
+		} else {
+			return new WP_Error( 'imajiner_source', __( 'Choose an allowed source and a valid field name.', 'imajiner-editor' ) );
+		}
+		$new = str_replace( '<!--imj-php:' . $number . '-->', $source, $this->masked );
+		return $this->unmask( $new );
 	}
 
 	/**
@@ -323,7 +379,24 @@ class Imajiner_Template_Scanner {
 			return new WP_Error( 'imajiner_unknown_node', __( 'Some changes point to elements that are not in the template. Reload the editor and try again.', 'imajiner-editor' ) );
 		}
 
-		return $this->unmask( strtr( $processor->get_updated_html(), $new_texts ) );
+		$html = strtr( $processor->get_updated_html(), $new_texts );
+		$clean = new Imajiner_Source_Processor( $html );
+		$elements = 0;
+		$removals = array();
+		while ( $clean->next_tag() ) {
+			$id = 'e' . $elements++;
+			foreach ( isset( $by_id[ $id ] ) ? $by_id[ $id ] : array() as $change ) {
+				if ( 'attr' === $change['type'] && 'class' === strtolower( $change['name'] ) && null === $change['value'] ) {
+					$span = $clean->span();
+					$tag = substr( $html, $span['start'], $span['end'] - $span['start'] );
+					$removals[] = array( $span, preg_replace( '/\s+(\/?>)$/', '$1', $tag ) );
+				}
+			}
+		}
+		foreach ( array_reverse( $removals ) as $removal ) {
+			$html = substr_replace( $html, $removal[1], $removal[0]['start'], $removal[0]['end'] - $removal[0]['start'] );
+		}
+		return $this->unmask( $html );
 	}
 
 	private function mark_mutable( array $nodes ) {
@@ -373,7 +446,22 @@ class Imajiner_Template_Scanner {
 			return $invalid;
 		}
 		$new = $this->masked;
-		if ( 'delete' === $type ) {
+		if ( 'replace' === $type ) {
+			$markup = isset( $change['markup'] ) ? $change['markup'] : null;
+			if ( ! is_string( $markup ) || strlen( $markup ) > 262144 || preg_match( '/<\?|imj-php:|imj-text:|data-imj-/i', $markup ) || wp_kses_post( $markup ) !== $markup ) {
+				return $invalid;
+			}
+			$fragment = new self( $markup, array( 'require_sections' => false ) );
+			$tree = $fragment->get_structure();
+			if ( $tree['warnings'] || count( $tree['tree'] ) !== 1 || ! in_array( $tree['tree'][0]->type, array( 'element', 'section' ), true ) || $fragment->get_php_sources() ) {
+				return $invalid;
+			}
+			if ( 's' === $id[0] && 'section' !== $tree['tree'][0]->type ) {
+				$marker_end = strpos( $html, '-->' ) + 3;
+				$markup = substr( $html, 0, $marker_end ) . "\n" . $markup . "\n<!-- /imj:section -->";
+			}
+			$new = substr_replace( $new, $markup, $span['start'], $span['end'] - $span['start'] );
+		} elseif ( 'delete' === $type ) {
 			$new = substr_replace( $new, '', $span['start'], $span['end'] - $span['start'] );
 		} elseif ( 'duplicate' === $type ) {
 			$new = substr_replace( $new, "\n" . $html, $span['end'], 0 );
@@ -413,8 +501,11 @@ class Imajiner_Template_Scanner {
 				}
 			} else {
 				$starters = self::element_starters();
+				foreach ( Imajiner_Section_Library::sections() as $name => $section ) {
+					$starters[ 'library-' . $name ] = $section['php'];
+				}
 				$starter = isset( $change['starter'] ) && is_string( $change['starter'] ) ? $change['starter'] : '';
-				if ( ! isset( $starters[ $starter ] ) || ( $this->require_sections && 'root' === $target && 'section' !== $starter ) ) {
+				if ( ! isset( $starters[ $starter ] ) || ( $this->require_sections && 'root' === $target && 'section' !== $starter && 0 !== strpos( $starter, 'library-' ) ) || ( 0 === strpos( $starter, 'library-' ) && 'root' !== $target && 's' !== substr( $target, 0, 1 ) ) ) {
 					return $invalid;
 				}
 				$html = $starters[ $starter ];
@@ -978,10 +1069,7 @@ class Imajiner_Template_Scanner {
 	 */
 	private function php_for_output() {
 		return array_map(
-			function ( $block ) {
-				unset( $block['source'] );
-				return $block;
-			},
+			function ( $block ) { return $block; },
 			$this->php
 		);
 	}

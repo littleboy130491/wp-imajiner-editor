@@ -1,3 +1,5 @@
+.imj-inline-text { display: contents; }
+.imj-inline-text[contenteditable] { display: inline; outline: 2px solid #2271b1; cursor: text; }
 /* Selection outlines inside the editor preview. */
 
 [data-imj-id] {

@@ -343,6 +343,13 @@ class Imajiner_Editor {
 				'restUrl'       => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/templates/' . $template['key'] ),
 				'restNonce'     => wp_create_nonce( 'wp_rest' ),
 				'normalizeUrl'  => Imajiner_Generation::can_generate() ? add_query_arg( 'normalize', $template['key'], Imajiner_Builder::url() ) . '#imj-ai' : '',
+				'library'       => array_map(
+					function ( $section ) {
+						return $section['label'];
+					},
+					Imajiner_Section_Library::sections()
+				),
+				'breakpointsUrl' => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/editor/breakpoints' ),
 			),
 			self::template_payload( $template, $files )
 		);
@@ -350,7 +357,7 @@ class Imajiner_Editor {
 		// The editor page is standalone, so it prints its own assets (see views/editor.php).
 		wp_enqueue_media();
 		wp_enqueue_style( 'imajiner-editor', IMAJINER_EDITOR_URL . 'assets/css/editor.css', array(), IMAJINER_EDITOR_VERSION );
-		wp_enqueue_script( 'imajiner-editor', IMAJINER_EDITOR_URL . 'assets/js/editor.js', array( 'media-editor' ), IMAJINER_EDITOR_VERSION, true );
+		wp_enqueue_script( 'imajiner-editor', IMAJINER_EDITOR_URL . 'assets/js/editor.js', array( 'media-editor', 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
 		wp_add_inline_script( 'imajiner-editor', 'window.imajinerEditor = ' . wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ) . ';', 'before' );
 
 		require IMAJINER_EDITOR_DIR . 'views/editor.php';
@@ -377,6 +384,8 @@ class Imajiner_Editor {
 		return array(
 			'hash'      => Imajiner_Template_Store::hash( $files ),
 			'structure' => $scanner->get_structure(),
+			'rules'     => $css->get_editable_rules( self::css_scope( $template ) ),
+			'sources'   => self::node_sources( $scanner ),
 			// An empty array would encode as [] instead of {}.
 			'styles'    => (object) array_map(
 				function ( $classes ) {
@@ -397,24 +406,27 @@ class Imajiner_Editor {
 	 *               breakpoint's width is a minimum: its preview fills the canvas when wider.
 	 */
 	public static function breakpoints() {
-		$breakpoints = array(
-			'desktop' => array(
-				'label' => __( 'Desktop', 'imajiner-editor' ),
-				'media' => '',
-				// Wider than every breakpoint, so no @media rule applies in the desktop preview.
-				'width' => 1280,
-			),
-			'tablet'  => array(
-				'label' => __( 'Tablet', 'imajiner-editor' ),
-				'media' => '(max-width: 1024px)',
-				'width' => 768,
-			),
-			'mobile'  => array(
-				'label' => __( 'Mobile', 'imajiner-editor' ),
-				'media' => '(max-width: 767px)',
-				'width' => 375,
-			),
-		);
+		$breakpoints = get_option( 'imajiner_editor_breakpoints', array() );
+		if ( ! $breakpoints ) {
+			$breakpoints = array(
+				'desktop' => array(
+					'label' => __( 'Desktop', 'imajiner-editor' ),
+					'media' => '',
+					// Wider than every breakpoint, so no @media rule applies in the desktop preview.
+					'width' => 1280,
+				),
+				'tablet'  => array(
+					'label' => __( 'Tablet', 'imajiner-editor' ),
+					'media' => '(max-width: 1024px)',
+					'width' => 768,
+				),
+				'mobile'  => array(
+					'label' => __( 'Mobile', 'imajiner-editor' ),
+					'media' => '(max-width: 767px)',
+					'width' => 375,
+				),
+			);
+		}
 
 		/**
 		 * Filters the breakpoints offered by the Style tab.
@@ -422,6 +434,48 @@ class Imajiner_Editor {
 		 * @param array $breakpoints Name => label, media and width. Keep them ordered widest first.
 		 */
 		return apply_filters( 'imajiner_editor_breakpoints', $breakpoints );
+	}
+
+	private static function node_sources( Imajiner_Template_Scanner $scanner ) {
+		$result = array();
+		$collect = function ( $nodes ) use ( &$collect, &$result, $scanner ) {
+			foreach ( $nodes as $node ) {
+				if ( in_array( $node->type, array( 'element', 'section' ), true ) ) {
+					$result[ $node->id ] = $scanner->get_node_source( $node->id );
+				}
+				if ( isset( $node->children ) ) {
+					$collect( $node->children );
+				}
+			}
+		};
+		$collect( $scanner->get_structure()['tree'] );
+		return (object) $result;
+	}
+
+	public static function save_breakpoints( $breakpoints ) {
+		$invalid = new WP_Error( 'imajiner_breakpoints', __( 'Provide up to ten named breakpoints with a base device first, valid media conditions and widths between 240 and 3840 pixels.', 'imajiner-editor' ), array( 'status' => 400 ) );
+		if ( ! is_array( $breakpoints ) || ! $breakpoints || count( $breakpoints ) > 10 ) {
+			return $invalid;
+		}
+		$clean = array();
+		$conditions = array();
+		foreach ( $breakpoints as $name => $breakpoint ) {
+			if ( ! is_string( $name ) || ! preg_match( '/^[a-z][a-z0-9_-]{0,30}$/', $name ) || ! is_array( $breakpoint ) || ! isset( $breakpoint['label'], $breakpoint['media'], $breakpoint['width'] ) || ! is_string( $breakpoint['label'] ) || ! is_string( $breakpoint['media'] ) || ! is_numeric( $breakpoint['width'] ) ) {
+				return $invalid;
+			}
+			$media = trim( $breakpoint['media'] );
+			$width = (int) $breakpoint['width'];
+			if ( ( ! $clean && '' !== $media ) || ( $clean && '' === $media ) || $width < 240 || $width > 3840 || '' === trim( $breakpoint['label'] ) || strlen( $breakpoint['label'] ) > 80 || strlen( $media ) > 200 || preg_match( '/[{};<>\\\\]|\/\*|\*\//', $media ) || ( '' !== $media && ! preg_match( '/^(?:only\s+|not\s+)?(?:screen|print|all|\()[a-zA-Z0-9\s():.\/-]*$/', $media ) ) || in_array( Imajiner_Css_Editor::media_key( $media ), $conditions, true ) ) {
+				return $invalid;
+			}
+			if ( substr_count( $media, '(' ) !== substr_count( $media, ')' ) ) {
+				return $invalid;
+			}
+			$conditions[] = Imajiner_Css_Editor::media_key( $media );
+			$clean[ $name ] = array( 'label' => sanitize_text_field( $breakpoint['label'] ), 'media' => $media, 'width' => $width );
+		}
+		update_option( 'imajiner_editor_breakpoints', $clean, false );
+		return true;
 	}
 
 	/**

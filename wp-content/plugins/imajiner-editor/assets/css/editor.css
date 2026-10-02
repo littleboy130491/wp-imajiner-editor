@@ -1,3 +1,13 @@
+.imj-tree__item:focus { outline: none; }
+.imj-tree__item:focus-visible > .imj-tree__row { outline: 2px solid #2271b1; outline-offset: -2px; }
+.imj-breakpoint-dialog { width: min(920px, 90vw); max-height: 85vh; overflow: auto; border: 1px solid #c3c4c7; border-radius: 8px; padding: 24px; }
+.imj-breakpoint-dialog::backdrop { background: #0008; }
+.imj-breakpoint-row { display: grid; grid-template-columns: 1fr 1fr 2fr 100px auto; gap: 8px; margin-bottom: 16px; }
+.imj-history__list > li { flex-wrap: wrap; }
+.imj-diff { flex-basis: 100%; min-width: 0; }
+.imj-diff .imj-code { max-height: 320px; overflow: auto; }
+.imj-diff__removed { color: #a00; background: #fff0f0; }
+.imj-diff__added { color: #075; background: #edfff4; }
 /* Imajiner Editor screen. */
 
 :root {

@@ -165,18 +165,35 @@ class Imajiner_Css_Editor {
 			$names[ self::media_key( $condition ) ] = $name;
 		}
 
-		$pattern = '/^' . preg_quote( $scope, '/' ) . ' \.(' . self::CLASS_PATTERN . ')$/';
+		$pattern = '/^' . preg_quote( $scope, '/' ) . ' \.(' . self::CLASS_PATTERN . ')(:hover|:focus-visible)?$/';
 		$styles  = array();
 
 		foreach ( $this->rules as $rule ) {
 			if ( isset( $names[ $rule['media'] ] ) && preg_match( $pattern, $rule['selector'], $match ) ) {
 				foreach ( $rule['declarations'] as $declaration ) {
-					$styles[ $names[ $rule['media'] ] ][ $match[1] ][ $declaration['property'] ] = $declaration['value'];
+					$target = $match[1] . ( isset( $match[2] ) ? $match[2] : '' );
+					$styles[ $names[ $rule['media'] ] ][ $target ][ $declaration['property'] ] = $declaration['value'];
 				}
 			}
 		}
 
 		return $styles;
+	}
+
+	public function get_editable_rules( $scope ) {
+		$result = array();
+		foreach ( $this->rules as $rule ) {
+			if ( is_wp_error( self::validate_scope( $rule['selector'] . ' {}', $scope ) ) ) {
+				continue;
+			}
+			$key = $rule['selector'] . '|' . $rule['media'];
+			$declarations = isset( $result[ $key ] ) ? (array) $result[ $key ]['declarations'] : array();
+			foreach ( $rule['declarations'] as $declaration ) {
+				$declarations[ $declaration['property'] ] = $declaration['value'];
+			}
+			$result[ $key ] = array( 'selector' => $rule['selector'], 'media' => $rule['media'], 'declarations' => (object) $declarations );
+		}
+		return array_values( $result );
 	}
 
 	/**

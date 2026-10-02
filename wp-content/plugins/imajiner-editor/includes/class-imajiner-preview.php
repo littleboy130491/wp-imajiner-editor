@@ -161,7 +161,7 @@ class Imajiner_Preview {
 		}
 
 		wp_enqueue_style( 'imajiner-preview', IMAJINER_EDITOR_URL . 'assets/css/preview.css', array(), IMAJINER_EDITOR_VERSION );
-		wp_enqueue_script( 'imajiner-preview', IMAJINER_EDITOR_URL . 'assets/js/preview.js', array(), IMAJINER_EDITOR_VERSION, true );
+		wp_enqueue_script( 'imajiner-preview', IMAJINER_EDITOR_URL . 'assets/js/preview.js', array( 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
 		wp_localize_script( 'imajiner-preview', 'imajinerPreview', array( 'editorOrigin' => Imajiner_Editor::origin( admin_url() ) ) );
 	}
 

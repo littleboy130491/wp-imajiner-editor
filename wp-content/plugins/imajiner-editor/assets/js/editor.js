@@ -8,6 +8,7 @@
  */
 ( function ( data ) {
 	'use strict';
+	const __ = window.wp.i18n.__;
 
 	let structure = data.structure;
 	let php = structure.php;
@@ -35,6 +36,20 @@
 	const changes = new Map();
 	let operations = [];
 	let saved = { hash: data.hash, structure: data.structure, styles: data.styles };
+	let rules = data.rules || [];
+	let sources = data.sources || {};
+	saved.rules = rules;
+	saved.sources = sources;
+	let styleState = '';
+	let selectedRule = null;
+	const undoStack = [];
+	const redoStack = [];
+	let historyGroup = '';
+	let historyTime = 0;
+	let stageTimer = null;
+	let stageVersion = 0;
+	let lockReady = false;
+	const lockToken = window.crypto.randomUUID ? window.crypto.randomUUID() : String( Date.now() ) + '-' + Math.random().toString( 36 ).slice( 2 );
 	let draggedId = null;
 	let selectedId = null;
 	let busy = false;
@@ -162,6 +177,94 @@
 
 	/* Pending changes */
 
+	function snapshot() {
+		return JSON.parse( JSON.stringify( { operations, changes: [ ...changes.entries() ], structure, styles, rules, sources, selectedId } ) );
+	}
+
+	function checkpoint( group = '' ) {
+		if ( ! group || group !== historyGroup || Date.now() - historyTime > 600 ) {
+			undoStack.push( snapshot() );
+			if ( undoStack.length > 100 ) {
+				undoStack.shift();
+			}
+		}
+		historyGroup = group;
+		historyTime = Date.now();
+		redoStack.length = 0;
+	}
+
+	function allChanges() {
+		return [ ...operations, ...( changes.size ? [ { type: 'batch', changes: [ ...changes.values() ] } ] : [] ) ];
+	}
+
+	function stageUrl( result ) {
+		const url = new URL( data.previewUrl );
+		if ( result.stage ) {
+			url.searchParams.set( 'imajiner_stage', result.stage );
+		}
+		frame.src = url.toString();
+	}
+
+	function scheduleStage() {
+		window.clearTimeout( stageTimer );
+		const version = ++stageVersion;
+		stageTimer = window.setTimeout( async () => {
+			if ( busy || ! lockReady || ! allChanges().length ) {
+				return;
+			}
+			try {
+				const result = await api( 'POST', '/stage', { hash, changes: allChanges() } );
+				if ( version === stageVersion && ! busy ) {
+					sources = result.sources;
+					stageUrl( result );
+				}
+			} catch ( error ) {
+				setStatus( error.message, 'error' );
+			}
+		}, 650 );
+	}
+
+	async function travelHistory( from, to ) {
+		if ( busy || ! lockReady || ! from.length ) {
+			return;
+		}
+		const current = snapshot();
+		const next = from[ from.length - 1 ];
+		const pending = [ ...next.operations, ...( next.changes.length ? [ { type: 'batch', changes: next.changes.map( ( entry ) => entry[1] ) } ] : [] ) ];
+		busy = true;
+		++stageVersion;
+		window.clearTimeout( stageTimer );
+		updateToolbar();
+		try {
+			const result = pending.length ? await api( 'POST', '/stage', { hash, changes: pending } ) : saved;
+			from.pop();
+			to.push( current );
+			operations = next.operations;
+			changes.clear();
+			next.changes.forEach( ( entry ) => changes.set( entry[0], entry[1] ) );
+			structure = next.structure;
+			php = structure.php;
+			styles = next.styles;
+			rules = next.rules;
+			sources = next.sources;
+			selectedId = next.selectedId;
+			historyGroup = '';
+			selectedRule = null;
+			renderTree();
+			if ( selectedId && index.has( selectedId ) ) {
+				select( selectedId, 'tree' );
+			} else {
+				renderEmptyProps();
+				document.dispatchEvent( new window.CustomEvent( 'imajiner:selection', { detail: getState(), bubbles: true } ) );
+			}
+			stageUrl( result );
+		} catch ( error ) {
+			setStatus( error.message, 'error' );
+		}
+		busy = false;
+		updateToolbar();
+	}
+
 	function textKey( id ) {
 		return id + '|text';
 	}
@@ -191,21 +294,27 @@
 	}
 
 	function setText( textNode, element, value ) {
+		if ( busy || ! lockReady || currentText( textNode ).trim() === value.trim() ) {
+			return;
+		}
+		checkpoint( textKey( textNode.id ) );
 		const key = textKey( textNode.id );
 		if ( value === textNode.text.trim() ) {
 			changes.delete( key );
 		} else {
 			changes.set( key, { type: 'text', id: textNode.id, value } );
 		}
-		// Only an element's sole text can be updated live; mixed content refreshes on save.
-		if ( element ) {
-			sendToPreview( { type: 'imj:apply', id: element.id, text: value } );
-		}
+		sendToPreview( { type: 'imj:text', id: textNode.id, text: value } );
 		refreshTreeLabel( element || textNode );
+		scheduleStage();
 		updateToolbar();
 	}
 
 	function setAttr( node, name, value ) {
+		if ( busy || ! lockReady || currentAttrs( node )[ name ] === value ) {
+			return;
+		}
+		checkpoint( attrKey( node.id, name ) );
 		const key = attrKey( node.id, name );
 		const original = Object.prototype.hasOwnProperty.call( node.attrs, name ) ? node.attrs[ name ] : null;
 		if ( value === original ) {
@@ -215,17 +324,18 @@
 		}
 		sendToPreview( { type: 'imj:apply', id: node.id, name, value } );
 		refreshTreeLabel( node );
+		scheduleStage();
 		updateToolbar();
 	}
 
 	/* Style values, for the active device */
 
 	function styleKey( className, property ) {
-		return 'style|' + device + '|' + className + '|' + property;
+		return 'style|' + device + '|' + ( selectedRule ? selectedRule.selector + '|' + selectedRule.media : className + styleState ) + '|' + property;
 	}
 
 	function classStyles( className ) {
-		return ( styles[ device ] && styles[ device ][ className ] ) || {};
+		return selectedRule ? selectedRule.declarations : ( styles[ device ] && styles[ device ][ className + styleState ] ) || {};
 	}
 
 	function savedStyle( className, property ) {
@@ -243,13 +353,18 @@
 	// An empty value removes the declaration.
 	function setStyle( className, property, value ) {
 		const clean = value.trim();
+		if ( busy || ! lockReady || currentStyle( className, property ) === clean ) {
+			return;
+		}
 		const key = styleKey( className, property );
+		checkpoint( key );
 		if ( clean === savedStyle( className, property ) ) {
 			changes.delete( key );
 		} else {
-			changes.set( key, { type: 'style', device, class: className, property, value: clean === '' ? null : clean } );
+			changes.set( key, { type: 'style', device, class: className, state: styleState, ...( selectedRule ? { selector: selectedRule.selector, media: selectedRule.media } : {} ), property, value: clean === '' ? null : clean } );
 		}
 		sendLiveCss();
+		scheduleStage();
 		updateToolbar();
 	}
 
@@ -257,12 +372,12 @@
 	// cascade matches the stylesheet. It comes after the template stylesheet with
 	// the same specificity, so it wins. Removals show after saving.
 	function sendLiveCss() {
-		const styleChanges = [ ...changes.values() ].filter( ( change ) => change.type === 'style' && change.value !== null );
+		const styleChanges = [ ...changes.values() ].filter( ( change ) => change.type === 'style' && change.value !== null && ! change.selector );
 		const css = data.breakpoints
 			.map( ( breakpoint ) => {
 				const rules = styleChanges
 					.filter( ( change ) => change.device === breakpoint.name )
-					.map( ( change ) => data.cssScope + ' .' + change.class + ' { ' + change.property + ': ' + change.value + '; }' )
+					.map( ( change ) => data.cssScope + ' .' + change.class + ( change.state || '' ) + ' { ' + change.property + ': ' + change.value + '; }' )
 					.join( '\n' );
 				if ( ! rules ) {
 					return '';
@@ -338,13 +453,17 @@
 
 	function updateToolbar() {
 		const count = changes.size + operations.length;
-		saveButton.disabled = busy || ! count;
+		saveButton.disabled = busy || ! lockReady || ! count;
 		discardButton.disabled = busy || ! count;
 		saveButton.textContent = count ? 'Save (' + count + ')' : 'Save';
-		propsEl.inert = busy;
-		treeEl.inert = busy;
+		propsEl.inert = busy || ! lockReady;
+		treeEl.inert = busy || ! lockReady;
+		document.getElementById( 'imj-undo' ).disabled = busy || ! lockReady || ! undoStack.length;
+		document.getElementById( 'imj-redo' ).disabled = busy || ! lockReady || ! redoStack.length;
+		document.getElementById( 'imj-insert-library' ).disabled = busy || ! lockReady;
+		sendToPreview( { type: 'imj:inline-config', enabled: lockReady && ! busy } );
 		if ( document.getElementById( 'imj-add-section' ) ) {
-			document.getElementById( 'imj-add-section' ).disabled = busy;
+			document.getElementById( 'imj-add-section' ).disabled = busy || ! lockReady;
 		}
 	}
 
@@ -400,9 +519,11 @@
 					className: 'imj-tree__toggle',
 					type: 'button',
 					'aria-label': 'Expand or collapse',
+					tabindex: '-1',
 					onClick: ( event ) => {
 						event.stopPropagation();
 						item.classList.toggle( 'is-collapsed' );
+						item.setAttribute( 'aria-expanded', String( ! item.classList.contains( 'is-collapsed' ) ) );
 					},
 			  } )
 			: h( 'span', { className: 'imj-tree__toggle imj-tree__toggle--empty' } );
@@ -432,7 +553,9 @@
 			draggedId = null;
 		} );
 		row.addEventListener( 'dragend', () => { draggedId = null; } );
-		const item = h( 'li', { className: 'imj-tree__item', role: 'treeitem' }, row, children.length ? renderNodes( children, node ) : null );
+		const item = h( 'li', { className: 'imj-tree__item', role: 'treeitem', tabindex: '-1', 'aria-selected': 'false', 'aria-expanded': children.length ? 'true' : null }, row, children.length ? renderNodes( children, node ) : null );
+		item.addEventListener( 'keydown', ( event ) => navigateLayers( event, node.id ) );
+		item.addEventListener( 'focus', () => select( node.id, 'keyboard' ) );
 
 		index.set( node.id, { node, parent, row, item, label } );
 		return item;
@@ -459,6 +582,10 @@
 	function renderTree() {
 		index.clear();
 		treeEl.replaceChildren( renderNodes( structure.tree, null ) );
+		const initial = index.get( selectedId ) || index.values().next().value;
+		if ( initial ) {
+			initial.item.tabIndex = 0;
+		}
 
 		warningsEl.replaceChildren();
 		const warnings = structure.warnings;
@@ -529,37 +656,51 @@
 	}
 
 	async function stageStructure( operation ) {
-		if ( busy ) {
+		return stageOperation( { type: 'structure', operation } );
+	}
+
+	async function stageOperation( operation, rejectErrors = false ) {
+		if ( busy || ! lockReady ) {
 			return;
 		}
 		const proposed = [ ...operations ];
 		if ( changes.size ) {
 			proposed.push( { type: 'batch', changes: [ ...changes.values() ] } );
 		}
-		proposed.push( { type: 'structure', operation } );
+		proposed.push( operation );
+		++stageVersion;
+		window.clearTimeout( stageTimer );
 		busy = true;
 		updateToolbar();
 		setStatus( 'Updating structure…' );
 		try {
 			const result = await api( 'POST', '/stage', { hash, changes: proposed } );
+			checkpoint();
 			operations = proposed;
 			changes.clear();
 			structure = result.structure;
 			php = structure.php;
 			styles = result.styles;
+			rules = result.rules;
+			sources = result.sources;
+			selectedRule = null;
 			selectedId = null;
 			styleTargets.clear();
 			renderTree();
 			renderEmptyProps();
-			const url = new URL( data.previewUrl );
-			url.searchParams.set( 'imajiner_stage', result.stage );
-			frame.src = url.toString();
+			stageUrl( result );
 			setStatus( 'Unsaved structural changes' );
+			document.dispatchEvent( new window.CustomEvent( 'imajiner:selection', { detail: getState(), bubbles: true } ) );
 		} catch ( error ) {
 			setStatus( error.message, 'error' );
+			if ( rejectErrors ) {
+				throw error;
+			}
+		} finally {
+			busy = false;
+			updateToolbar();
 		}
-		busy = false;
-		updateToolbar();
+		return getState();
 	}
 
 	/* Properties panel */
@@ -935,7 +1076,18 @@
 			  )
 			: null;
 
+		const statePicker = h( 'select', { className: 'imj-input', onChange: ( event ) => {
+			styleState = event.target.value;
+			renderProps( node.id );
+		} }, [ [ '', __( 'Normal', 'imajiner-editor' ) ], [ ':hover', __( 'Hover', 'imajiner-editor' ) ], [ ':focus-visible', __( 'Focus visible', 'imajiner-editor' ) ] ].map( ( [ value, label ] ) => h( 'option', { value, selected: value === styleState }, label ) ) );
+		const matchingRules = rules.filter( ( rule ) => classes.some( ( name ) => new RegExp( '\\.' + name + '(?![a-zA-Z0-9_-])' ).test( rule.selector ) ) );
+		const rulePicker = h( 'select', { className: 'imj-input', onChange: ( event ) => {
+			selectedRule = event.target.value === '' ? null : matchingRules[ Number( event.target.value ) ];
+			renderProps( node.id );
+		} }, h( 'option', { value: '', selected: ! selectedRule }, __( 'Class and device rule', 'imajiner-editor' ) ), matchingRules.map( ( rule, position ) => h( 'option', { value: String( position ), selected: selectedRule === rule }, rule.selector + ( rule.media ? ' @media ' + rule.media : '' ) ) ) );
 		return [
+			field( __( 'Existing selector', 'imajiner-editor' ), rulePicker ),
+			selectedRule ? null : field( __( 'State', 'imajiner-editor' ), statePicker ),
 			deviceNote,
 			field(
 				'Styles apply to',
@@ -1028,13 +1180,16 @@
 				content.push( field( 'Content', h( 'pre', { className: 'imj-code' }, node.text.trim() ) ) );
 			}
 		} else if ( node.type === 'text' ) {
-			content.push( field( 'Text', textEditor( node, null ) ), h( 'p', { className: 'imj-muted' }, 'This text sits next to other elements, so the preview updates after saving.' ) );
+			content.push( field( 'Text', textEditor( node, null ) ) );
 		} else {
 			const info = php[ node.php ];
 			if ( info.detail ) {
 				content.push( field( node.type === 'block' ? 'Condition' : 'Detail', h( 'code', {}, info.detail ) ) );
 			}
-			content.push( field( 'PHP', h( 'pre', { className: 'imj-code' }, info.code ) ) );
+			content.push( field( 'PHP', h( 'pre', { className: 'imj-code', tabindex: '0', 'aria-label': __( 'Read-only PHP source', 'imajiner-editor' ) }, info.source ) ) );
+			if ( info.kind === 'dynamic' ) {
+				content.push( dynamicSourceControl( node ) );
+			}
 		}
 
 		content.push( structuralControls( node ) );
@@ -1063,6 +1218,14 @@
 	}
 
 	// Preview elements to outline for a node. Text and PHP values outline the element they sit in.
+	function dynamicSourceControl( node ) {
+		const source = h( 'select', { className: 'imj-input', 'aria-label': __( 'Dynamic source', 'imajiner-editor' ) },
+			[ [ 'title', __( 'Title', 'imajiner-editor' ) ], [ 'excerpt', __( 'Excerpt', 'imajiner-editor' ) ], [ 'custom-field', __( 'Custom field', 'imajiner-editor' ) ] ].map( ( [ value, label ] ) => h( 'option', { value }, label ) ) );
+		const fieldName = h( 'input', { className: 'imj-input', type: 'text', placeholder: __( 'Custom field name', 'imajiner-editor' ), 'aria-label': __( 'Custom field name', 'imajiner-editor' ) } );
+		return field( __( 'Dynamic source', 'imajiner-editor' ), source, fieldName,
+			h( 'button', { type: 'button', className: 'imj-button', onClick: () => stageOperation( { type: 'source', id: node.id, source: source.value, field: fieldName.value } ) }, __( 'Apply source', 'imajiner-editor' ) ) );
+	}
+
 	function previewIds( id ) {
 		const node = index.get( id ).node;
 		if ( node.type === 'element' ) {
@@ -1100,16 +1263,62 @@
 				sendToPreview( { type: 'imj:apply', id: change.id, name: change.name, value: change.value } );
 			}
 		} );
-		index.forEach( ( { node } ) => {
-			const text = soleText( node );
-			if ( text && changes.has( textKey( text.id ) ) ) {
-				sendToPreview( { type: 'imj:apply', id: node.id, text: currentText( text ) } );
+		changes.forEach( ( change ) => {
+			if ( change.type === 'text' ) {
+				sendToPreview( { type: 'imj:text', id: change.id, text: change.value } );
 			}
 		} );
 		sendLiveCss();
 	}
 
 	/* Selection */
+
+	function navigateLayers( event, id ) {
+		if ( event.target !== index.get( id ).item ) {
+			return;
+		}
+		const visible = [ ...treeEl.querySelectorAll( '[role="treeitem"]' ) ].filter( ( item ) => ! item.parentElement.closest( '.is-collapsed' ) );
+		const item = index.get( id ).item;
+		const position = visible.indexOf( item );
+		let target = null;
+		if ( event.key === 'ArrowDown' ) {
+			target = visible[ Math.min( visible.length - 1, position + 1 ) ];
+		} else if ( event.key === 'ArrowUp' ) {
+			target = visible[ Math.max( 0, position - 1 ) ];
+		} else if ( event.key === 'Home' ) {
+			target = visible[0];
+		} else if ( event.key === 'End' ) {
+			target = visible[ visible.length - 1 ];
+		} else if ( event.key === 'ArrowRight' || event.key === 'ArrowLeft' ) {
+			const entry = index.get( id );
+			const children = visibleChildren( entry.node );
+			const collapsed = item.classList.contains( 'is-collapsed' );
+			if ( event.key === 'ArrowRight' && children.length ) {
+				if ( collapsed ) {
+					item.classList.remove( 'is-collapsed' );
+					item.setAttribute( 'aria-expanded', 'true' );
+				} else {
+					target = index.get( children[0].id ).item;
+				}
+			} else if ( event.key === 'ArrowLeft' ) {
+				if ( ! collapsed && children.length ) {
+					item.classList.add( 'is-collapsed' );
+					item.setAttribute( 'aria-expanded', 'false' );
+				} else if ( entry.parent ) {
+					target = index.get( entry.parent.id ).item;
+				}
+			}
+		} else if ( event.key === 'Enter' || event.key === ' ' ) {
+			select( id, 'keyboard' );
+		} else {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		if ( target ) {
+			target.focus();
+		}
+	}
 
 	function select( id, source ) {
 		const entry = index.get( id );
@@ -1121,15 +1330,25 @@
 			index.get( selectedId ).row.classList.remove( 'is-selected' );
 		}
 		selectedId = id;
+		selectedRule = null;
+		index.forEach( ( { node, item } ) => {
+			item.tabIndex = node.id === id ? 0 : -1;
+			item.setAttribute( 'aria-selected', String( node.id === id ) );
+		} );
 		entry.row.classList.add( 'is-selected' );
 
-		ancestors( id ).forEach( ( parent ) => index.get( parent.id ).item.classList.remove( 'is-collapsed' ) );
-		if ( source === 'preview' ) {
+		ancestors( id ).forEach( ( parent ) => {
+			index.get( parent.id ).item.classList.remove( 'is-collapsed' );
+			index.get( parent.id ).item.setAttribute( 'aria-expanded', 'true' );
+		} );
+		if ( source === 'preview' || source === 'tree' ) {
 			entry.row.scrollIntoView( { block: 'nearest' } );
+			entry.item.focus();
 		}
 
 		renderProps( id );
 		highlight( source !== 'preview' );
+		document.dispatchEvent( new window.CustomEvent( 'imajiner:selection', { detail: getState(), bubbles: true } ) );
 	}
 
 	/* Saving and history */
@@ -1139,7 +1358,7 @@
 			method,
 			credentials: 'same-origin',
 			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.restNonce },
-			body: body ? JSON.stringify( body ) : undefined,
+			body: body ? JSON.stringify( { ...body, lock: lockToken } ) : undefined,
 		} );
 		const json = await response.json().catch( () => ( {} ) );
 		if ( ! response.ok ) {
@@ -1150,12 +1369,20 @@
 
 	// Takes a fresh structure from the server after the template file changed.
 	function loadTemplate( result ) {
+		++stageVersion;
+		window.clearTimeout( stageTimer );
+		undoStack.length = 0;
+		redoStack.length = 0;
+		historyGroup = '';
+		selectedRule = null;
 		saved = result;
 		operations = [];
 		hash = result.hash;
 		structure = result.structure;
 		php = structure.php;
 		styles = result.styles;
+		rules = result.rules || [];
+		sources = result.sources || {};
 		changes.clear();
 		renderTree();
 		if ( selectedId && index.has( selectedId ) ) {
@@ -1163,16 +1390,19 @@
 		} else {
 			selectedId = null;
 			renderEmptyProps();
+			document.dispatchEvent( new window.CustomEvent( 'imajiner:selection', { detail: getState(), bubbles: true } ) );
 		}
 		frame.src = data.previewUrl;
 		updateToolbar();
 	}
 
 	async function save() {
-		if ( busy || ( ! changes.size && ! operations.length ) ) {
+		if ( busy || ! lockReady || ( ! changes.size && ! operations.length ) ) {
 			return;
 		}
 		busy = true;
+		++stageVersion;
+		window.clearTimeout( stageTimer );
 		updateToolbar();
 		setStatus( 'Saving…' );
 		try {
@@ -1242,14 +1472,30 @@
 	}
 
 	async function restore( revision, button ) {
+		if ( busy || ! lockReady ) {
+			return;
+		}
 		if ( changes.size || operations.length ) {
 			setStatus( 'Save or discard your changes before restoring.', 'error' );
 			return;
 		}
 		// Ask for a second click instead of a browser dialog.
 		if ( ! button.classList.contains( 'is-confirming' ) ) {
-			button.classList.add( 'is-confirming' );
-			button.textContent = 'Click to confirm';
+			button.disabled = true;
+			try {
+				const diff = await api( 'GET', '/revisions/' + revision.id + '/diff' );
+				const display = h( 'div', { className: 'imj-diff' }, h( 'h4', {}, __( 'Changes on restore', 'imajiner-editor' ) ) );
+				[ 'php', 'css' ].forEach( ( language ) => {
+					display.append( h( 'h5', {}, language.toUpperCase() ), lineDiff( diff.before[ language ], diff.after[ language ] ) );
+				} );
+				button.parentElement.querySelector( '.imj-diff' )?.remove();
+				button.parentElement.append( display );
+				button.classList.add( 'is-confirming' );
+				button.textContent = __( 'Click to confirm', 'imajiner-editor' );
+			} catch ( error ) {
+				setStatus( error.message, 'error' );
+			}
+			button.disabled = false;
 			return;
 		}
 
@@ -1269,6 +1515,159 @@
 
 	/* Events */
 
+	function lineDiff( before, after ) {
+		const left = before.split( '\n' );
+		const right = after.split( '\n' );
+		let start = 0;
+		while ( start < left.length && start < right.length && left[start] === right[start] ) {
+			start++;
+		}
+		let endLeft = left.length;
+		let endRight = right.length;
+		while ( endLeft > start && endRight > start && left[endLeft - 1] === right[endRight - 1] ) {
+			endLeft--;
+			endRight--;
+		}
+		return h( 'pre', { className: 'imj-code', tabindex: '0' },
+			h( 'span', { className: 'imj-diff__removed' }, left.slice( start, endLeft ).map( ( line ) => '- ' + line ).join( '\n' ) ), '\n',
+			h( 'span', { className: 'imj-diff__added' }, right.slice( start, endRight ).map( ( line ) => '+ ' + line ).join( '\n' ) ) );
+	}
+
+	function getState() {
+		const state = JSON.parse( JSON.stringify( { template: data.template, hash, structure, styles, rules, selectedId, dirty: Boolean( operations.length || changes.size ), selectedSource: selectedId ? sources[ selectedId ] || '' : '' } ) );
+		changes.forEach( ( change ) => {
+			if ( change.type !== 'style' ) {
+				return;
+			}
+			let declarations;
+			if ( change.selector ) {
+				const rule = state.rules.find( ( value ) => value.selector === change.selector && value.media === change.media );
+				if ( ! rule ) {
+					return;
+				}
+				declarations = rule.declarations;
+			} else {
+				const classes = state.styles[ change.device ] || ( state.styles[ change.device ] = {} );
+				const key = change.class + ( change.state || '' );
+				declarations = classes[ key ] || ( classes[ key ] = {} );
+			}
+			if ( change.value === null ) {
+				delete declarations[ change.property ];
+			} else {
+				declarations[ change.property ] = change.value;
+			}
+		} );
+		function reflect( nodes ) {
+			nodes.forEach( ( node ) => {
+				if ( node.type === 'text' ) {
+					node.text = currentText( node );
+				} else if ( node.type === 'element' ) {
+					node.attrs = currentAttrs( node );
+				}
+				if ( node.children ) {
+					reflect( node.children );
+				}
+			} );
+		}
+		reflect( state.structure.tree );
+		return state;
+	}
+
+	function findText( nodes, id ) {
+		for ( const node of nodes ) {
+			if ( node.type === 'text' && node.id === id ) {
+				return node;
+			}
+			const nested = node.children && findText( node.children, id );
+			if ( nested ) {
+				return nested;
+			}
+		}
+		return null;
+	}
+
+	async function reload() {
+		if ( busy ) {
+			throw new Error( __( 'Wait for the current operation to finish.', 'imajiner-editor' ) );
+		}
+		if ( operations.length || changes.size ) {
+			throw new Error( __( 'Save or discard your changes before reloading.', 'imajiner-editor' ) );
+		}
+		busy = true;
+		updateToolbar();
+		try {
+			loadTemplate( await api( 'GET', '' ) );
+		} finally {
+			busy = false;
+			updateToolbar();
+		}
+		return getState();
+	}
+
+	async function applyProposal( proposal ) {
+		const entry = index.get( selectedId );
+		if ( busy || ! lockReady || ! entry || ! entry.node.mutable || ! [ 'element', 'section' ].includes( entry.node.type ) || ! proposal || typeof proposal.php !== 'string' || typeof proposal.css !== 'string' ) {
+			throw new Error( __( 'Select an editable element or section before applying a proposal.', 'imajiner-editor' ) );
+		}
+		return stageOperation( { type: 'proposal', id: selectedId, php: proposal.php, css: proposal.css }, true );
+	}
+
+	async function renewLock() {
+		try {
+			await api( 'POST', '/lock', {} );
+			lockReady = true;
+			updateToolbar();
+		} catch ( error ) {
+			lockReady = false;
+			updateToolbar();
+			setStatus( error.message, 'error' );
+		}
+	}
+
+	function editBreakpoints() {
+		if ( busy || changes.size || operations.length ) {
+			setStatus( __( 'Save or discard changes before editing breakpoints.', 'imajiner-editor' ), 'error' );
+			return;
+		}
+		const dialog = h( 'dialog', { className: 'imj-breakpoint-dialog' } );
+		const rows = h( 'div' );
+		function addRow( name = '', value = { label: '', media: '', width: 768 } ) {
+			const inputs = [ [ __( 'Name', 'imajiner-editor' ), name ], [ __( 'Label', 'imajiner-editor' ), value.label ], [ __( 'Media condition', 'imajiner-editor' ), value.media ], [ __( 'Width', 'imajiner-editor' ), value.width ] ].map( ( [ label, content ], position ) => h( 'label', {}, label, h( 'input', { className: 'imj-input', value: String( content ), type: position === 3 ? 'number' : 'text' } ) ) );
+			const row = h( 'div', { className: 'imj-breakpoint-row' }, inputs );
+			row.append( h( 'button', { type: 'button', className: 'imj-button', onClick: () => row.remove() }, __( 'Remove', 'imajiner-editor' ) ) );
+			rows.append( row );
+		}
+		data.breakpoints.forEach( ( value ) => addRow( value.name, value ) );
+		const error = h( 'p', { role: 'alert' } );
+		dialog.append( h( 'h2', {}, __( 'Breakpoints', 'imajiner-editor' ) ), h( 'p', {}, __( 'Keep the base device first with an empty media condition. Site filters may override these settings.', 'imajiner-editor' ) ), rows,
+			h( 'button', { type: 'button', className: 'imj-button', onClick: () => addRow() }, __( 'Add breakpoint', 'imajiner-editor' ) ), error,
+			h( 'button', { type: 'button', className: 'imj-button', onClick: async () => {
+				const next = {};
+				for ( const row of rows.children ) {
+					const inputs = row.querySelectorAll( 'input' );
+					if ( Object.hasOwn( next, inputs[0].value ) ) {
+						error.textContent = __( 'Breakpoint names must be unique.', 'imajiner-editor' );
+						return;
+					}
+					next[inputs[0].value] = { label: inputs[1].value, media: inputs[2].value, width: Number( inputs[3].value ) };
+				}
+				try {
+					const response = await fetch( data.breakpointsUrl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.restNonce }, body: JSON.stringify( { breakpoints: next } ) } );
+					const result = await response.json();
+					if ( ! response.ok ) {
+						throw new Error( result.message );
+					}
+					window.location.reload();
+				} catch ( failure ) {
+					error.textContent = failure.message;
+				}
+			} }, __( 'Save breakpoints', 'imajiner-editor' ) ),
+			h( 'button', { type: 'button', className: 'imj-button', onClick: () => dialog.close() }, __( 'Cancel', 'imajiner-editor' ) ) );
+		dialog.addEventListener( 'close', () => dialog.remove() );
+		document.body.append( dialog );
+		dialog.showModal();
+	}
+
 	window.addEventListener( 'message', ( event ) => {
 		if ( event.origin !== data.previewOrigin || event.source !== frame.contentWindow || ! event.data ) {
 			return;
@@ -1278,10 +1677,19 @@
 		} else if ( event.data.type === 'imj:move' ) {
 			moveNode( event.data.id, event.data.target, event.data.position );
 		} else if ( event.data.type === 'imj:ready' ) {
+			sendToPreview( { type: 'imj:inline-config', enabled: lockReady && ! busy } );
 			replayChanges();
 			highlight( false );
 			if ( selectedId && activeTab === 'style' ) {
 				sendToPreview( { type: 'imj:inspect', id: selectedId, properties: CONTROLLED_PROPERTIES } );
+			}
+		} else if ( event.data.type === 'imj:text-edited' && ! busy && lockReady ) {
+			const text = findText( structure.tree, event.data.id );
+			if ( text && typeof event.data.value === 'string' ) {
+				setText( text, null, event.data.value );
+				if ( selectedId ) {
+					renderProps( selectedId );
+				}
 			}
 		} else if ( event.data.type === 'imj:computed' ) {
 			showComputed( event.data.id, event.data.values );
@@ -1289,6 +1697,10 @@
 	} );
 
 	saveButton.addEventListener( 'click', save );
+	document.getElementById( 'imj-undo' ).addEventListener( 'click', () => travelHistory( undoStack, redoStack ) );
+	document.getElementById( 'imj-redo' ).addEventListener( 'click', () => travelHistory( redoStack, undoStack ) );
+	document.getElementById( 'imj-breakpoints' ).addEventListener( 'click', editBreakpoints );
+	document.getElementById( 'imj-insert-library' ).addEventListener( 'click', () => stageStructure( { type: 'insert', target: 'root', position: 'inside', starter: document.getElementById( 'imj-library' ).value } ) );
 	discardButton.addEventListener( 'click', discard );
 	document.getElementById( 'imj-add-section' ).addEventListener( 'click', () => stageStructure( { type: 'insert', target: 'root', position: 'inside', starter: 'section' } ) );
 
@@ -1300,7 +1712,11 @@
 	} );
 
 	document.addEventListener( 'keydown', ( event ) => {
-		if ( ( event.ctrlKey || event.metaKey ) && event.key.toLowerCase() === 's' ) {
+		if ( ( event.ctrlKey || event.metaKey ) && ! event.target.matches( 'input, textarea, [contenteditable]' ) && [ 'z', 'y' ].includes( event.key.toLowerCase() ) ) {
+			event.preventDefault();
+			const redo = event.shiftKey || event.key.toLowerCase() === 'y';
+			travelHistory( redo ? redoStack : undoStack, redo ? undoStack : redoStack );
+		} else if ( ( event.ctrlKey || event.metaKey ) && event.key.toLowerCase() === 's' ) {
 			event.preventDefault();
 			save();
 		} else if ( event.key === 'Escape' && ! historyPanel.hidden ) {
@@ -1316,6 +1732,12 @@
 	} );
 
 	/* Init */
+	window.imajinerEditor = { ...data, getState, reload, applyProposal };
+	window.addEventListener( 'pagehide', () => {
+		fetch( data.restUrl + '/lock', { method: 'DELETE', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.restNonce }, body: JSON.stringify( { lock: lockToken } ) } ).catch( () => {} );
+	} );
+	window.setInterval( renewLock, 60000 );
+	renewLock();
 
 	buildDatalists();
 	renderDevices();
