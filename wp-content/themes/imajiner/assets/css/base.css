@@ -1,0 +1,289 @@
+/**
+ * Imajiner base styles.
+ *
+ * Design tokens are CSS custom properties on :root. Override them per site in
+ * the child theme's style.css; template CSS should use them instead of raw values.
+ */
+
+:root {
+	/* Colors */
+	--imj-color-bg: #ffffff;
+	--imj-color-surface: #f5f5f4;
+	--imj-color-text: #1c1917;
+	--imj-color-muted: #57534e;
+	--imj-color-border: #e7e5e4;
+	--imj-color-primary: #2563eb;
+	--imj-color-primary-contrast: #ffffff;
+
+	/* Typography */
+	--imj-font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--imj-font-heading: var(--imj-font-body);
+	--imj-text-sm: 0.875rem;
+	--imj-text-base: 1rem;
+	--imj-text-lg: 1.25rem;
+	--imj-text-xl: 1.75rem;
+	--imj-text-2xl: clamp(2rem, 4vw, 2.75rem);
+	--imj-text-3xl: clamp(2.5rem, 6vw, 4rem);
+	--imj-leading: 1.6;
+
+	/* Spacing */
+	--imj-space-1: 0.25rem;
+	--imj-space-2: 0.5rem;
+	--imj-space-3: 1rem;
+	--imj-space-4: 1.5rem;
+	--imj-space-5: 2rem;
+	--imj-space-6: 3rem;
+	--imj-space-7: 4rem;
+	--imj-space-8: 6rem;
+
+	/* Layout */
+	--imj-container: 1200px;
+	--imj-container-narrow: 720px;
+	--imj-gutter: 1rem;
+	--imj-radius: 8px;
+}
+
+/* Reset */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--imj-color-bg);
+	color: var(--imj-color-text);
+	font-family: var(--imj-font-body);
+	font-size: var(--imj-text-base);
+	line-height: var(--imj-leading);
+	-webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	margin: 0 0 var(--imj-space-3);
+	font-family: var(--imj-font-heading);
+	line-height: 1.2;
+}
+
+p,
+ul,
+ol,
+figure,
+blockquote {
+	margin: 0 0 var(--imj-space-3);
+}
+
+img,
+video,
+svg {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+a {
+	color: var(--imj-color-primary);
+}
+
+/* Layout */
+
+.container {
+	width: 100%;
+	max-width: calc(var(--imj-container) + 2 * var(--imj-gutter));
+	margin-inline: auto;
+	padding-inline: var(--imj-gutter);
+}
+
+.content-area {
+	padding-block: var(--imj-space-6);
+}
+
+.button {
+	display: inline-block;
+	padding: var(--imj-space-2) var(--imj-space-4);
+	border-radius: var(--imj-radius);
+	background: var(--imj-color-primary);
+	color: var(--imj-color-primary-contrast);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.button:hover,
+.button:focus-visible {
+	filter: brightness(1.1);
+}
+
+/* Accessibility */
+
+.screen-reader-text {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(1px, 1px, 1px, 1px);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.skip-link:focus {
+	top: var(--imj-space-2);
+	left: var(--imj-space-2);
+	z-index: 1000;
+	width: auto;
+	height: auto;
+	padding: var(--imj-space-2) var(--imj-space-3);
+	clip: auto;
+	clip-path: none;
+	background: var(--imj-color-bg);
+}
+
+/* Site header */
+
+.site-header {
+	border-bottom: 1px solid var(--imj-color-border);
+}
+
+.site-header__inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--imj-space-3);
+	padding-block: var(--imj-space-3);
+}
+
+.site-title {
+	color: var(--imj-color-text);
+	font-size: var(--imj-text-lg);
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.custom-logo {
+	max-height: 48px;
+	width: auto;
+}
+
+.site-nav__menu,
+.site-footer__menu {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--imj-space-4);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.site-nav__menu a,
+.site-footer__menu a {
+	color: var(--imj-color-text);
+	text-decoration: none;
+}
+
+.site-nav__menu .sub-menu {
+	display: none;
+}
+
+.site-nav__menu li:hover > .sub-menu,
+.site-nav__menu li:focus-within > .sub-menu {
+	display: block;
+	position: absolute;
+	padding: var(--imj-space-2) var(--imj-space-3);
+	list-style: none;
+	background: var(--imj-color-bg);
+	border: 1px solid var(--imj-color-border);
+	border-radius: var(--imj-radius);
+}
+
+/* Site footer */
+
+.site-footer {
+	border-top: 1px solid var(--imj-color-border);
+	color: var(--imj-color-muted);
+	font-size: var(--imj-text-sm);
+}
+
+.site-footer__inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--imj-space-3);
+	padding-block: var(--imj-space-5);
+}
+
+.site-footer__copy {
+	margin: 0;
+}
+
+/* Default content (posts, pages, archives) */
+
+.page-header,
+.entry__header {
+	margin-bottom: var(--imj-space-5);
+}
+
+.entry,
+.page-header {
+	max-width: var(--imj-container-narrow);
+	margin-inline: auto;
+}
+
+.entry__meta {
+	color: var(--imj-color-muted);
+	font-size: var(--imj-text-sm);
+}
+
+.entry__thumb {
+	margin-bottom: var(--imj-space-5);
+}
+
+.entry__content .alignwide {
+	max-width: var(--imj-container);
+	margin-inline: calc((var(--imj-container-narrow) - var(--imj-container)) / 2);
+}
+
+.entry__content .alignfull {
+	width: 100vw;
+	max-width: 100vw;
+	margin-inline: calc(50% - 50vw);
+}
+
+.post-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: var(--imj-space-5);
+}
+
+.post-card__title {
+	font-size: var(--imj-text-lg);
+}
+
+.post-card__title a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.post-card__thumb {
+	display: block;
+	margin-bottom: var(--imj-space-3);
+	overflow: hidden;
+	border-radius: var(--imj-radius);
+}
+
+.post-card__excerpt {
+	color: var(--imj-color-muted);
+}
+
+.nav-links {
+	display: flex;
+	gap: var(--imj-space-3);
+	margin-top: var(--imj-space-6);
+}

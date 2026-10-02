@@ -1,0 +1,13 @@
+/*
+Theme Name: Imajiner
+Author: Imajiner
+Description: Base theme for pages built with the Imajiner Editor plugin. Site templates live in a child theme under imajiner/.
+Version: 0.1.0
+Requires at least: 6.5
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: imajiner
+*/
+
+/* Styles live in assets/css/base.css. This file only holds the theme header. */

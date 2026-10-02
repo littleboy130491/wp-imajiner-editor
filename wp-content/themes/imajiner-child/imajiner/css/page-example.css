@@ -1,0 +1,61 @@
+/* Styles for imajiner/page-example.php, scoped to its body class. */
+
+.imj-page-example .hero {
+	padding-block: var(--imj-space-8);
+	background: var(--imj-color-surface);
+	text-align: center;
+}
+
+.imj-page-example .hero__title {
+	max-width: 18ch;
+	margin-inline: auto;
+	font-size: var(--imj-text-3xl);
+}
+
+.imj-page-example .hero__text {
+	max-width: 56ch;
+	margin: 0 auto var(--imj-space-5);
+	color: var(--imj-color-muted);
+	font-size: var(--imj-text-lg);
+}
+
+.imj-page-example .features {
+	padding-block: var(--imj-space-7);
+}
+
+.imj-page-example .features__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: var(--imj-space-5);
+}
+
+.imj-page-example .feature__title {
+	font-size: var(--imj-text-lg);
+}
+
+.imj-page-example .feature__text {
+	color: var(--imj-color-muted);
+}
+
+.imj-page-example .latest-posts {
+	padding-block: var(--imj-space-7);
+	border-top: 1px solid var(--imj-color-border);
+}
+
+.imj-page-example .latest-posts__title {
+	margin-bottom: var(--imj-space-5);
+	font-size: var(--imj-text-2xl);
+}
+
+.imj-page-example .hero__image {
+	width: 100%;
+	max-width: 960px;
+	height: auto;
+	margin: var(--imj-space-6) auto 0;
+	border-radius: var(--imj-radius);
+}
+
+.imj-page-example .hero_new {
+	color: #82541c;
+	font-size: var(--imj-text-2xl);
+}

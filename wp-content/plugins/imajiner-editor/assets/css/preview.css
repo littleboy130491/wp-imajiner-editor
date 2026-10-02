@@ -1,0 +1,15 @@
+/* Selection outlines inside the editor preview. */
+
+[data-imj-id] {
+	cursor: default;
+}
+
+[data-imj-id].imj-hover {
+	outline: 1px dashed #2563eb;
+	outline-offset: -1px;
+}
+
+[data-imj-id].imj-selected {
+	outline: 2px solid #2563eb !important;
+	outline-offset: -2px;
+}

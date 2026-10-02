@@ -1,0 +1,12 @@
+/*
+Theme Name: Imajiner Child
+Template: imajiner
+Description: Per-site child theme. Holds this site's Imajiner templates in imajiner/ and its design token overrides below.
+Version: 0.1.0
+Text Domain: imajiner-child
+*/
+
+/* Override the parent's design tokens for this site. */
+:root {
+	/* --imj-color-primary: #e11d48; */
+}

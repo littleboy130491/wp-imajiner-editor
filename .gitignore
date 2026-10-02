@@ -1,0 +1,19 @@
+# Only the Imajiner code is versioned. WordPress core, uploads, other plugins and
+# themes, and config files with credentials (wp-config.php, .wpsite-credentials)
+# stay out of the repository.
+/*
+!/.gitignore
+!/AGENTS.md
+!/TODO.md
+
+!/wp-content/
+/wp-content/*
+
+!/wp-content/plugins/
+/wp-content/plugins/*
+!/wp-content/plugins/imajiner-editor/
+
+!/wp-content/themes/
+/wp-content/themes/*
+!/wp-content/themes/imajiner/
+!/wp-content/themes/imajiner-child/
