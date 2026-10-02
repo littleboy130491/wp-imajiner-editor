@@ -5,7 +5,7 @@
  * A template is two files edited together: the PHP template and its
  * stylesheet (imajiner/css/<slug>.css, which may not exist yet). Every write
  * is syntax-checked, the previous version of both is saved as a revision, and
- * each file is replaced atomically. Revisions are stored as a private post
+ * files are staged and verified, with recovery on failure. Revisions use a private post
  * type so old template code never sits in a web-accessible file.
  *
  * @package Imajiner_Editor
@@ -71,14 +71,22 @@ class Imajiner_Template_Store {
 	 * @return array|WP_Error Array with php and css source; css is '' when the stylesheet doesn't exist.
 	 */
 	public static function read( $path ) {
-		// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$php      = file_get_contents( $path );
+		$valid = self::validate_template( $path );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		$php      = Imajiner_Filesystem::read( $path );
+		if ( is_wp_error( $php ) ) {
+			return $php;
+		}
 		$css_path = self::css_path( $path );
-		$css      = file_exists( $css_path ) ? file_get_contents( $css_path ) : '';
-		// phpcs:enable
-
-		if ( false === $php || false === $css ) {
-			return new WP_Error( 'imajiner_unreadable', __( 'The template files could not be read.', 'imajiner-editor' ) );
+		$valid = Imajiner_Filesystem::check_path( $css_path );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		$css = Imajiner_Filesystem::exists( $css_path ) ? Imajiner_Filesystem::read( $css_path ) : '';
+		if ( is_wp_error( $css ) ) {
+			return $css;
 		}
 
 		return array(
@@ -97,6 +105,10 @@ class Imajiner_Template_Store {
 	 * @return true|WP_Error
 	 */
 	public static function write( $path, $base_hash, array $new_files, $note ) {
+		$valid = self::validate_write( $path, $new_files );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
 		$current = self::read( $path );
 		if ( is_wp_error( $current ) ) {
 			return $current;
@@ -122,32 +134,12 @@ class Imajiner_Template_Store {
 			}
 		}
 
-		foreach ( array_keys( $targets ) as $file ) {
-			$dir = dirname( $file );
-			if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
-				return new WP_Error( 'imajiner_not_writable', __( 'The template stylesheet folder could not be created.', 'imajiner-editor' ) );
-			}
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-			if ( file_exists( $file ) ? ! is_writable( $file ) : ! is_writable( $dir ) ) {
-				/* translators: %s: file name. */
-				return new WP_Error( 'imajiner_not_writable', sprintf( __( '%s is not writable.', 'imajiner-editor' ), basename( $file ) ) );
-			}
-		}
-
 		$revision = self::add_revision( $path, $current, $note );
 		if ( is_wp_error( $revision ) ) {
 			return $revision;
 		}
 
-		// The stylesheet goes first: if the template write then fails, the page still works.
-		foreach ( array_reverse( $targets, true ) as $file => $source ) {
-			$result = self::replace_file( $file, $source );
-			if ( is_wp_error( $result ) ) {
-				return $result;
-			}
-		}
-
-		return true;
+		return self::transaction( array_reverse( $targets, true ) );
 	}
 
 	/**
@@ -158,7 +150,15 @@ class Imajiner_Template_Store {
 	 * @return true|WP_Error
 	 */
 	public static function create( $path, array $files ) {
-		if ( file_exists( $path ) ) {
+		$valid = self::validate_write( $path, $files );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		$ready = Imajiner_Filesystem::init();
+		if ( is_wp_error( $ready ) ) {
+			return $ready;
+		}
+		if ( Imajiner_Filesystem::exists( $path ) || Imajiner_Filesystem::exists( self::css_path( $path ) ) ) {
 			return new WP_Error( 'imajiner_exists', __( 'A template with that file name already exists.', 'imajiner-editor' ) );
 		}
 
@@ -167,18 +167,7 @@ class Imajiner_Template_Store {
 			return $syntax;
 		}
 
-		// The stylesheet goes first, so the template never exists without it.
-		foreach ( array( self::css_path( $path ) => $files['css'], $path => $files['php'] ) as $file => $source ) {
-			if ( ! is_dir( dirname( $file ) ) && ! wp_mkdir_p( dirname( $file ) ) ) {
-				return new WP_Error( 'imajiner_not_writable', __( 'The template folder could not be created.', 'imajiner-editor' ) );
-			}
-			$result = self::replace_file( $file, $source );
-			if ( is_wp_error( $result ) ) {
-				return $result;
-			}
-		}
-
-		return true;
+		return self::transaction( array( self::css_path( $path ) => $files['css'], $path => $files['php'] ) );
 	}
 
 	/**
@@ -188,6 +177,9 @@ class Imajiner_Template_Store {
 	 * @return array[] Each with id, date, author and note.
 	 */
 	public static function get_revisions( $path ) {
+		if ( is_wp_error( Imajiner_Filesystem::can_write() ) || is_wp_error( Imajiner_Filesystem::validate_path( $path ) ) ) {
+			return array();
+		}
 		$posts = get_posts(
 			array(
 				'post_type'      => self::REVISION_POST_TYPE,
@@ -222,6 +214,14 @@ class Imajiner_Template_Store {
 	 * @return array|WP_Error php and css source.
 	 */
 	public static function get_revision_files( $path, $revision_id ) {
+		$allowed = Imajiner_Filesystem::can_write();
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
+		$valid = Imajiner_Filesystem::validate_path( $path );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
 		$post = get_post( $revision_id );
 		if ( ! $post || self::REVISION_POST_TYPE !== $post->post_type || get_post_meta( $post->ID, '_imajiner_template', true ) !== self::template_key( $path ) ) {
 			return new WP_Error( 'imajiner_revision_not_found', __( 'Revision not found.', 'imajiner-editor' ), array( 'status' => 404 ) );
@@ -245,46 +245,175 @@ class Imajiner_Template_Store {
 		} catch ( ParseError $error ) {
 			return new WP_Error(
 				'imajiner_syntax_error',
-				/* translators: 1: PHP error message, 2: line number. */
-				sprintf( __( 'PHP syntax error: %1$s on line %2$d.', 'imajiner-editor' ), $error->getMessage(), $error->getLine() )
+				/* translators: %d: line number. */
+				sprintf( __( 'PHP syntax error on line %d.', 'imajiner-editor' ), $error->getLine() )
 			);
 		}
 		return true;
 	}
 
 	/**
-	 * Writes next to the target, then renames over it, so a failed write never leaves a half-written file.
+	 * Stages and verifies a replacement through the configured filesystem.
 	 *
 	 * @param string $file   Target path.
 	 * @param string $source New contents.
 	 * @return true|WP_Error
 	 */
 	private static function replace_file( $file, $source ) {
-		$temp  = $file . '.imj-' . wp_generate_password( 8, false ) . '.tmp';
-		$error = new WP_Error(
-			'imajiner_write_failed',
-			/* translators: %s: file name. */
-			sprintf( __( '%s could not be written.', 'imajiner-editor' ), basename( $file ) )
-		);
+		return Imajiner_Filesystem::write( $file, $source );
+	}
 
-		// phpcs:disable WordPress.WP.AlternativeFunctions
-		if ( false === file_put_contents( $temp, $source ) ) {
-			wp_delete_file( $temp );
-			return $error;
+	private static function validate_template( $path ) {
+		$valid = Imajiner_Filesystem::validate_path( $path );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
 		}
-		if ( file_exists( $file ) ) {
-			chmod( $temp, fileperms( $file ) & 0777 );
-		}
-		if ( ! rename( $temp, $file ) ) {
-			wp_delete_file( $temp );
-			return $error;
-		}
-		// phpcs:enable
+		$relative = substr( wp_normalize_path( $path ), strlen( untrailingslashit( wp_normalize_path( get_stylesheet_directory() ) ) ) + 1 );
+		return preg_match( '#^imajiner/(?:parts/)?[a-z0-9_-]+\.php$#D', $relative ) ? true : new WP_Error( 'imajiner_invalid_path', __( 'Use a template or part inside the active child theme.', 'imajiner-editor' ), array( 'status' => 400 ) );
+	}
 
-		if ( function_exists( 'opcache_invalidate' ) ) {
-			opcache_invalidate( $file, true );
+	private static function validate_write( $path, array $files ) {
+		$allowed = Imajiner_Filesystem::can_write();
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
+		$valid = self::validate_template( $path );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		if ( ! isset( $files['php'], $files['css'] ) || ! is_string( $files['php'] ) || ! is_string( $files['css'] ) ) {
+			return new WP_Error( 'imajiner_invalid_files', __( 'Provide PHP and CSS source.', 'imajiner-editor' ), array( 'status' => 400 ) );
+		}
+		return Imajiner_Filesystem::check_path( self::css_path( $path ) );
+	}
+
+	/** Null means delete. Snapshot all targets before changing any of them. */
+	private static function transaction( array $targets, array $permissions = array() ) {
+		$before = array();
+		$modes = array();
+		foreach ( $targets as $file => $source ) {
+			$ready = Imajiner_Filesystem::init();
+			if ( is_wp_error( $ready ) ) {
+				return $ready;
+			}
+			$valid = Imajiner_Filesystem::check_path( $file );
+			if ( is_wp_error( $valid ) ) {
+				return $valid;
+			}
+			$before[ $file ] = Imajiner_Filesystem::exists( $file ) ? Imajiner_Filesystem::read( $file ) : null;
+			if ( is_wp_error( $before[ $file ] ) ) {
+				return $before[ $file ];
+			}
+			$modes[ $file ] = null === $before[ $file ] ? null : Imajiner_Filesystem::get_permissions( $file );
+			if ( is_wp_error( $modes[ $file ] ) ) {
+				return $modes[ $file ];
+			}
+		}
+		$attempted = array();
+		foreach ( $targets as $file => $source ) {
+			$attempted[] = $file;
+			$result = null === $source ? Imajiner_Filesystem::delete( $file ) : self::replace_file( $file, $source );
+			if ( ! is_wp_error( $result ) && isset( $permissions[ $file ] ) ) {
+				$result = Imajiner_Filesystem::set_permissions( $file, $permissions[ $file ] );
+			}
+			if ( is_wp_error( $result ) ) {
+				$failed = false;
+				foreach ( array_reverse( $attempted ) as $previous ) {
+					if ( null === $before[ $previous ] ? ! Imajiner_Filesystem::exists( $previous ) : ( Imajiner_Filesystem::read( $previous ) === $before[ $previous ] && Imajiner_Filesystem::get_permissions( $previous ) === $modes[ $previous ] ) ) {
+						continue;
+					}
+					$recovery = null === $before[ $previous ] ? Imajiner_Filesystem::delete( $previous ) : self::replace_file( $previous, $before[ $previous ] );
+					if ( ! is_wp_error( $recovery ) && null !== $modes[ $previous ] ) {
+						$recovery = Imajiner_Filesystem::set_permissions( $previous, $modes[ $previous ] );
+					}
+					$failed = $failed || is_wp_error( $recovery );
+				}
+				return $failed ? new WP_Error( 'imajiner_rollback_failed', __( 'The change and recovery failed. Reconnect and restore the saved revision.', 'imajiner-editor' ), array( 'status' => 500 ) ) : $result;
+			}
 		}
 		return true;
+	}
+
+	public static function delete( $path, $base_hash ) {
+		$valid = self::validate_write( $path, array( 'php' => '', 'css' => '' ) );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		$current = self::read( $path );
+		if ( is_wp_error( $current ) ) {
+			return $current;
+		}
+		if ( self::hash( $current ) !== $base_hash ) {
+			return new WP_Error( 'imajiner_conflict', __( 'The template changed. Reload before deleting.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		$revision = self::add_revision( $path, $current, __( 'Before deleting template', 'imajiner-editor' ) );
+		return is_wp_error( $revision ) ? $revision : self::transaction( array( $path => null, self::css_path( $path ) => null ) );
+	}
+
+	public static function rename( $path, $new_path, $base_hash ) {
+		$valid = self::validate_write( $new_path, array( 'php' => '', 'css' => '' ) );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		$current = self::read( $path );
+		if ( is_wp_error( $current ) ) {
+			return $current;
+		}
+		if ( self::hash( $current ) !== $base_hash ) {
+			return new WP_Error( 'imajiner_conflict', __( 'The template changed. Reload before renaming.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		$syntax = self::check_syntax( $current['php'] );
+		if ( is_wp_error( $syntax ) ) {
+			return $syntax;
+		}
+		if ( Imajiner_Filesystem::exists( $new_path ) || Imajiner_Filesystem::exists( self::css_path( $new_path ) ) ) {
+			return new WP_Error( 'imajiner_exists', __( 'A template or stylesheet already uses that name.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		$revision = self::add_revision( $path, $current, __( 'Before renaming template', 'imajiner-editor' ) );
+		if ( is_wp_error( $revision ) ) {
+			return $revision;
+		}
+		$permissions = array( $new_path => Imajiner_Filesystem::get_permissions( $path ) );
+		if ( Imajiner_Filesystem::exists( self::css_path( $path ) ) ) {
+			$permissions[ self::css_path( $new_path ) ] = Imajiner_Filesystem::get_permissions( self::css_path( $path ) );
+		}
+		foreach ( $permissions as $mode ) {
+			if ( is_wp_error( $mode ) ) {
+				return $mode;
+			}
+		}
+		return self::transaction( array( self::css_path( $new_path ) => $current['css'], $new_path => $current['php'], $path => null, self::css_path( $path ) => null ), $permissions );
+	}
+
+	/** Hash is md5 of the CSS bytes; missing files use md5(''). */
+	public static function write_css( $path, $base_hash, $css ) {
+		$allowed = Imajiner_Filesystem::can_write();
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
+		$valid = Imajiner_Filesystem::validate_path( $path );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		if ( '.css' !== substr( $path, -4 ) || ! is_string( $css ) ) {
+			return new WP_Error( 'imajiner_invalid_path', __( 'Design tokens must be saved to a child theme CSS file.', 'imajiner-editor' ), array( 'status' => 400 ) );
+		}
+		$ready = Imajiner_Filesystem::check_path( $path );
+		if ( is_wp_error( $ready ) ) {
+			return $ready;
+		}
+		$current = Imajiner_Filesystem::exists( $path ) ? Imajiner_Filesystem::read( $path ) : '';
+		if ( is_wp_error( $current ) ) {
+			return $current;
+		}
+		if ( md5( $current ) !== $base_hash ) {
+			return new WP_Error( 'imajiner_conflict', __( 'The stylesheet changed. Reload before saving.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		if ( $current === $css ) {
+			return true;
+		}
+		$revision = self::add_revision( $path, array( 'php' => '', 'css' => $current ), __( 'Before design token update', 'imajiner-editor' ) );
+		return is_wp_error( $revision ) ? $revision : self::transaction( array( $path => $css ) );
 	}
 
 	/**
