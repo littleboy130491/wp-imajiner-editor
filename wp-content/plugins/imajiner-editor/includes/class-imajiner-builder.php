@@ -23,11 +23,57 @@ class Imajiner_Builder {
 	 * Hooks the screen and its form handlers.
 	 */
 	public static function init() {
+		Imajiner_Template_Manager::init();
+		add_filter( 'imajiner_part_visible', array( __CLASS__, 'preview_part_visibility' ), 10, 2 );
 		add_action( 'admin_menu', array( __CLASS__, 'add_page' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'ai_page_link' ) );
 		add_action( 'admin_post_imajiner_create_template', array( __CLASS__, 'create_template' ) );
 		add_action( 'admin_post_imajiner_create_part', array( __CLASS__, 'create_part' ) );
 		add_action( 'admin_post_imajiner_save_locations', array( __CLASS__, 'save_locations' ) );
+		add_action( 'admin_post_imajiner_save_part_conditions', array( __CLASS__, 'save_part_conditions' ) );
+	}
+
+	public static function preview_part_visibility( $visible, $part ) {
+		$preview = Imajiner_Preview::current();
+		return $preview && 'part' === $preview['type'] && $preview['slug'] === $part['slug'] ? true : $visible;
+	}
+
+	public static function save_part_conditions() {
+		self::check_request( 'imajiner_save_part_conditions' );
+		$input = wp_unslash( $_POST );
+		$result = self::update_part_conditions(
+			isset( $input['template'] ) && is_string( $input['template'] ) ? $input['template'] : '',
+			isset( $input['hash'] ) && is_string( $input['hash'] ) ? $input['hash'] : '',
+			$input
+		);
+		self::redirect_with( is_wp_error( $result ) ? 'error' : 'success', is_wp_error( $result ) ? $result->get_error_message() : __( 'Display conditions saved.', 'imajiner-editor' ) );
+	}
+
+	public static function update_part_conditions( $key, $hash, array $conditions ) {
+		$path = Imajiner_Template_Manager::path( $key );
+		if ( is_wp_error( $path ) ) {
+			return $path;
+		}
+		if ( 0 !== strpos( $key, 'parts/' ) || ! is_file( $path ) ) {
+			return new WP_Error( 'imajiner_missing', __( 'Choose an existing child-theme part.', 'imajiner-editor' ) );
+		}
+		$files = Imajiner_Template_Store::read( $path );
+		if ( is_wp_error( $files ) ) {
+			return $files;
+		}
+		$headers = array( 'post_types' => 'Part Post Types', 'include' => 'Part Include', 'exclude' => 'Part Exclude' );
+		foreach ( $headers as $field => $header ) {
+			$values  = isset( $conditions[ $field ] ) ? $conditions[ $field ] : array();
+			$allowed = 'post_types' === $field ? get_post_types( array( 'public' => true ) ) : array_keys( imajiner_template_locations() );
+			if ( ! is_array( $values ) || array_filter( $values, function ( $value ) use ( $allowed ) { return ! is_string( $value ) || ! in_array( $value, $allowed, true ); } ) ) {
+				return new WP_Error( 'imajiner_conditions', __( 'Unknown display condition.', 'imajiner-editor' ) );
+			}
+			$files['php'] = self::set_header( $files['php'], $header, implode( ', ', array_unique( $values ) ) );
+			if ( is_wp_error( $files['php'] ) ) {
+				return $files['php'];
+			}
+		}
+		return Imajiner_Template_Store::write( $path, $hash, $files, __( 'Before changing part display conditions', 'imajiner-editor' ) );
 	}
 
 	/**
@@ -152,7 +198,8 @@ class Imajiner_Builder {
 				$wanted[ $location ] = $key;
 			}
 		}
-		$changed = self::assign_locations( $wanted, array_keys( imajiner_template_locations() ) );
+		$hashes  = isset( $_POST['hashes'] ) && is_array( $_POST['hashes'] ) ? wp_unslash( $_POST['hashes'] ) : array();
+		$changed = self::assign_locations( $wanted, array_keys( imajiner_template_locations() ), $hashes );
 
 		$parts       = imajiner_get_parts();
 		$part_posted = isset( $_POST['parts'] ) && is_array( $_POST['parts'] ) ? wp_unslash( $_POST['parts'] ) : array();
@@ -164,7 +211,7 @@ class Imajiner_Builder {
 			$location = sanitize_key( $part_posted[ $slug ] );
 			$location = isset( imajiner_part_locations()[ $location ] ) ? $location : '';
 			if ( $location !== $part['location'] ) {
-				$result = self::update_header( $part['file'], 'Part Location', $location, __( 'Before changing the part location', 'imajiner-editor' ) );
+				$result = self::update_header( $part['file'], 'Part Location', $location, __( 'Before changing the part location', 'imajiner-editor' ), isset( $hashes[ 'parts/' . $slug ] ) ? $hashes[ 'parts/' . $slug ] : '' );
 				if ( is_wp_error( $result ) ) {
 					self::redirect_with( 'error', $result->get_error_message() );
 				}
@@ -188,7 +235,7 @@ class Imajiner_Builder {
 	 * @param string[] $managed Locations being set; others in the headers are kept as they are.
 	 * @return int Number of files changed.
 	 */
-	private static function assign_locations( array $wanted, array $managed ) {
+	private static function assign_locations( array $wanted, array $managed, $hashes = null ) {
 		$changed = 0;
 		foreach ( imajiner_get_templates() as $key => $template ) {
 			$locations = array_values( array_diff( $template['locations'], $managed ) );
@@ -201,7 +248,7 @@ class Imajiner_Builder {
 			if ( $locations === $template['locations'] ) {
 				continue;
 			}
-			$result = self::update_header( $template['file'], 'Imajiner Location', implode( ', ', $locations ), __( 'Before changing template locations', 'imajiner-editor' ) );
+			$result = self::update_header( $template['file'], 'Imajiner Location', implode( ', ', $locations ), __( 'Before changing template locations', 'imajiner-editor' ), null === $hashes ? null : ( isset( $hashes[ $key ] ) ? $hashes[ $key ] : '' ) );
 			if ( is_wp_error( $result ) ) {
 				self::redirect_with( 'error', $result->get_error_message() );
 			}
@@ -219,7 +266,15 @@ class Imajiner_Builder {
 	 * @param string $note   Revision note.
 	 * @return true|WP_Error
 	 */
-	private static function update_header( $path, $header, $value, $note ) {
+	private static function update_header( $path, $header, $value, $note, $hash = null ) {
+		$key  = ( basename( dirname( $path ) ) === 'parts' ? 'parts/' : '' ) . basename( $path, '.php' );
+		$safe = Imajiner_Template_Manager::path( $key );
+		if ( is_wp_error( $safe ) ) {
+			return $safe;
+		}
+		if ( wp_normalize_path( $safe ) !== wp_normalize_path( $path ) ) {
+			return new WP_Error( 'imajiner_parent_readonly', __( 'Copy parent-theme templates into the child theme before assigning them.', 'imajiner-editor' ) );
+		}
 		$files = Imajiner_Template_Store::read( $path );
 		if ( is_wp_error( $files ) ) {
 			return $files;
@@ -230,7 +285,7 @@ class Imajiner_Builder {
 			return $php;
 		}
 
-		return Imajiner_Template_Store::write( $path, Imajiner_Template_Store::hash( $files ), array_merge( $files, array( 'php' => $php ) ), $note );
+		return Imajiner_Template_Store::write( $path, null === $hash ? Imajiner_Template_Store::hash( $files ) : $hash, array_merge( $files, array( 'php' => $php ) ), $note );
 	}
 
 	/**
@@ -486,6 +541,14 @@ HTML;
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="imajiner_save_locations">
 				<?php wp_nonce_field( 'imajiner_save_locations' ); ?>
+				<?php
+				foreach ( $templates as $key => $template ) {
+					self::render_hash( $key, $template['file'] );
+				}
+				foreach ( $parts as $slug => $part ) {
+					self::render_hash( 'parts/' . $slug, $part['file'] );
+				}
+				?>
 
 				<h2><?php esc_html_e( 'Template parts', 'imajiner-editor' ); ?></h2>
 				<table class="widefat striped" style="max-width:960px">
@@ -570,6 +633,17 @@ HTML;
 				</tbody>
 			</table>
 
+			<h2><?php esc_html_e( 'Manage files and display conditions', 'imajiner-editor' ); ?></h2>
+			<?php foreach ( $templates as $key => $template ) : ?>
+				<h3><?php echo esc_html( $template['name'] ); ?></h3>
+				<?php Imajiner_Template_Manager::render_form( $key, $template['file'] ); ?>
+			<?php endforeach; ?>
+			<?php foreach ( $parts as $slug => $part ) : ?>
+				<h3><?php echo esc_html( $part['name'] ); ?></h3>
+				<?php Imajiner_Template_Manager::render_form( 'parts/' . $slug, $part['file'] ); ?>
+				<?php self::render_conditions_form( $part ); ?>
+			<?php endforeach; ?>
+
 			<div style="display:flex;flex-wrap:wrap;gap:24px;margin-top:24px;max-width:960px">
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="card" style="flex:1;min-width:300px;margin:0">
 					<h2><?php esc_html_e( 'New template part', 'imajiner-editor' ); ?></h2>
@@ -620,14 +694,61 @@ HTML;
 		<?php
 	}
 
-	/**
-	 * Checks capability and nonce for a form handler.
-	 *
-	 * @param string $action Nonce action.
-	 */
+	private static function render_hash( $key, $path ) {
+		$files = Imajiner_Template_Store::read( $path );
+		if ( ! is_wp_error( $files ) ) {
+			printf( '<input type="hidden" name="hashes[%s]" value="%s">', esc_attr( $key ), esc_attr( Imajiner_Template_Store::hash( $files ) ) );
+		}
+	}
+
+	private static function render_conditions_form( array $part ) {
+		$key  = 'parts/' . $part['slug'];
+		$path = Imajiner_Template_Manager::path( $key );
+		if ( is_wp_error( $path ) || wp_normalize_path( $path ) !== wp_normalize_path( $part['file'] ) ) {
+			return;
+		}
+		$files = Imajiner_Template_Store::read( $path );
+		if ( is_wp_error( $files ) ) {
+			return;
+		}
+		$fields = array( 'post_types' => __( 'Post types', 'imajiner-editor' ), 'include' => __( 'Include on', 'imajiner-editor' ), 'exclude' => __( 'Exclude on', 'imajiner-editor' ) );
+		?>
+		<details>
+			<summary><?php esc_html_e( 'Display conditions', 'imajiner-editor' ); ?></summary>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="imajiner_save_part_conditions">
+				<input type="hidden" name="template" value="<?php echo esc_attr( $key ); ?>">
+				<input type="hidden" name="hash" value="<?php echo esc_attr( Imajiner_Template_Store::hash( $files ) ); ?>">
+				<?php wp_nonce_field( 'imajiner_save_part_conditions' ); ?>
+				<p><?php esc_html_e( 'Leave post types and inclusion empty for all requests. Any inclusion may match; exclusions win. These conditions also apply to explicit part calls. The editor preview always shows the edited part.', 'imajiner-editor' ); ?></p>
+				<?php foreach ( $fields as $field => $label ) : ?>
+					<p><label><?php echo esc_html( $label ); ?><br>
+					<select name="<?php echo esc_attr( $field ); ?>[]" multiple size="6">
+						<?php
+						$options = imajiner_template_locations();
+						if ( 'post_types' === $field ) {
+							$options = array();
+							foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $type ) {
+								$options[ $type->name ] = $type->labels->name;
+							}
+						}
+						foreach ( $options as $value => $option ) :
+							?>
+							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( in_array( $value, $part[ $field ], true ), true ); ?>><?php echo esc_html( $option ); ?></option>
+						<?php endforeach; ?>
+					</select></label></p>
+				<?php endforeach; ?>
+				<?php submit_button( __( 'Save display conditions', 'imajiner-editor' ), 'secondary', 'submit', false ); ?>
+			</form>
+		</details>
+		<?php
+	}
+
+	/** Checks capability and nonce for a form handler. */
 	private static function check_request( $action ) {
-		if ( ! Imajiner_Editor::user_can_edit_templates() ) {
-			wp_die( esc_html__( 'You are not allowed to manage templates.', 'imajiner-editor' ), 403 );
+		$permission = Imajiner_Template_Manager::permission();
+		if ( is_wp_error( $permission ) ) {
+			wp_die( esc_html( $permission->get_error_message() ), '', array( 'response' => 403 ) );
 		}
 		check_admin_referer( $action );
 	}

@@ -29,6 +29,8 @@ function imajiner_template_locations() {
 	unset( $post_types['attachment'] );
 
 	$locations = array( 'single' => __( 'All single posts and pages', 'imajiner' ) );
+	$locations['front-page'] = __( 'Front page', 'imajiner-editor' );
+	$locations['home']       = __( 'Blog / posts page', 'imajiner-editor' );
 	foreach ( $post_types as $type ) {
 		/* translators: %s: post type name, e.g. "Post". */
 		$locations[ 'single:' . $type->name ] = sprintf( __( 'Single %s', 'imajiner' ), $type->labels->singular_name );
@@ -47,6 +49,13 @@ function imajiner_template_locations() {
 	foreach ( $taxonomies as $taxonomy ) {
 		/* translators: %s: taxonomy name, e.g. "Category". */
 		$locations[ 'taxonomy:' . $taxonomy->name ] = sprintf( __( '%s archive', 'imajiner' ), $taxonomy->labels->singular_name );
+		$terms = get_terms( array( 'taxonomy' => $taxonomy->name, 'hide_empty' => false ) );
+		if ( ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $term ) {
+				/* translators: 1: taxonomy label, 2: term name. */
+				$locations[ 'term:' . $taxonomy->name . ':' . $term->slug ] = sprintf( __( '%1$s: %2$s', 'imajiner-editor' ), $taxonomy->labels->singular_name, $term->name );
+			}
+		}
 	}
 
 	$locations['author'] = __( 'Author archive', 'imajiner' );
@@ -68,11 +77,6 @@ function imajiner_template_locations() {
  * @return array Key (file name without .php) => key, name, file, post_types, locations.
  */
 function imajiner_get_templates() {
-	static $templates = null;
-	if ( null !== $templates ) {
-		return $templates;
-	}
-
 	$templates = array();
 	foreach ( array_unique( array( get_template_directory(), get_stylesheet_directory() ) ) as $root ) {
 		foreach ( (array) glob( $root . '/' . IMAJINER_TEMPLATE_DIR . '/*.php' ) as $file ) {
@@ -132,14 +136,17 @@ function imajiner_request_locations() {
 	if ( is_404() ) {
 		return array( '404' );
 	}
+	if ( is_front_page() ) {
+		return is_home() ? array( 'front-page', 'home', 'archive:post', 'archive' ) : array( 'front-page', 'single:page', 'single' );
+	}
+	if ( is_home() ) {
+		return array( 'home', 'archive:post', 'archive' );
+	}
 	if ( is_singular() ) {
 		return array( 'single:' . get_post_type(), 'single' );
 	}
 	if ( is_search() ) {
 		return array( 'search', 'archive' );
-	}
-	if ( is_home() ) {
-		return array( 'archive:post', 'archive' );
 	}
 	if ( is_post_type_archive() ) {
 		$type = get_query_var( 'post_type' );
@@ -148,7 +155,7 @@ function imajiner_request_locations() {
 	}
 	if ( is_category() || is_tag() || is_tax() ) {
 		$term = get_queried_object();
-		return array( 'taxonomy:' . $term->taxonomy, 'archive' );
+		return array( 'term:' . $term->taxonomy . ':' . $term->slug, 'taxonomy:' . $term->taxonomy, 'archive' );
 	}
 	if ( is_author() ) {
 		return array( 'author', 'archive' );

@@ -51,11 +51,6 @@ function imajiner_part_locations() {
  * @return array Slug => slug, name, location, description, file.
  */
 function imajiner_get_parts() {
-	static $parts = null;
-	if ( null !== $parts ) {
-		return $parts;
-	}
-
 	$parts     = array();
 	$locations = imajiner_part_locations();
 
@@ -72,6 +67,10 @@ function imajiner_get_parts() {
 					'name'        => 'Part Name',
 					'location'    => 'Part Location',
 					'description' => 'Part Description',
+					'post_types'  => 'Part Post Types',
+					'include'     => 'Part Include',
+					'exclude'     => 'Part Exclude',
+					'aliases'     => 'Part Aliases',
 				)
 			);
 
@@ -81,12 +80,47 @@ function imajiner_get_parts() {
 				'location'    => isset( $locations[ $headers['location'] ] ) ? $headers['location'] : '',
 				'description' => $headers['description'],
 				'file'        => $file,
+				'post_types'  => imajiner_part_header_list( $headers['post_types'] ),
+				'include'     => imajiner_part_header_list( $headers['include'] ),
+				'exclude'     => imajiner_part_header_list( $headers['exclude'] ),
+				'aliases'     => array_values( array_filter( imajiner_part_header_list( $headers['aliases'] ), function ( $alias ) { return (bool) preg_match( '/^[a-z0-9-]+$/D', $alias ); } ) ),
 			);
 		}
 	}
 
 	ksort( $parts );
 	return $parts;
+}
+
+function imajiner_part_header_list( $value ) {
+	return array_values( array_unique( array_filter( array_map( 'trim', explode( ',', $value ) ) ) ) );
+}
+
+/** Include conditions are alternatives; exclusions always take precedence. */
+function imajiner_part_visible( array $part ) {
+	$locations = imajiner_request_locations();
+	if ( is_front_page() ) {
+		$locations[] = 'front-page';
+	}
+	if ( is_home() ) {
+		$locations[] = 'home';
+	}
+	$visible = ( ! $part['include'] || array_intersect( $part['include'], $locations ) ) && ! array_intersect( $part['exclude'], $locations );
+	if ( $visible && $part['post_types'] ) {
+		$types = array();
+		if ( is_singular() ) {
+			$types[] = get_post_type( get_queried_object_id() );
+		} elseif ( is_home() ) {
+			$types[] = 'post';
+		} elseif ( is_post_type_archive() ) {
+			$types = (array) get_query_var( 'post_type' );
+		} elseif ( is_category() || is_tag() || is_tax() ) {
+			$taxonomy = get_taxonomy( get_queried_object()->taxonomy );
+			$types    = $taxonomy ? $taxonomy->object_type : array();
+		}
+		$visible = (bool) array_intersect( $part['post_types'], $types );
+	}
+	return (bool) apply_filters( 'imajiner_part_visible', (bool) $visible, $part );
 }
 
 /**
@@ -99,6 +133,14 @@ function imajiner_get_parts() {
 function imajiner_part( $slug, $args = array() ) {
 	$parts = imajiner_get_parts();
 	if ( ! isset( $parts[ $slug ] ) ) {
+		foreach ( $parts as $candidate ) {
+			if ( in_array( $slug, $candidate['aliases'], true ) ) {
+				$slug = $candidate['slug'];
+				break;
+			}
+		}
+	}
+	if ( ! isset( $parts[ $slug ] ) || ! imajiner_part_visible( $parts[ $slug ] ) ) {
 		return false;
 	}
 
@@ -109,6 +151,10 @@ function imajiner_part( $slug, $args = array() ) {
 	 * @param string $slug Part slug.
 	 */
 	$file = apply_filters( 'imajiner_part_file', $parts[ $slug ]['file'], $slug );
+	if ( ! is_file( $file ) ) {
+		return false;
+	}
+	imajiner_enqueue_part_style( $parts[ $slug ] );
 
 	echo '<div class="imj-part imj-part-' . esc_attr( $slug ) . '">';
 	load_template( $file, false, $args );
@@ -179,15 +225,16 @@ function imajiner_file_uri( $file ) {
 }
 
 /**
- * Loads every part's stylesheet. Parts are small and can appear on any page, so
- * loading them all keeps them styled wherever a template includes one.
+ * Enqueues only a rendered part. Late calls print through WordPress's style
+ * loader immediately, including calls after the footer and editor previews.
  */
-function imajiner_enqueue_part_styles() {
-	foreach ( imajiner_get_parts() as $part ) {
-		$css = imajiner_css_file( $part['file'] );
-		if ( file_exists( $css ) ) {
-			wp_enqueue_style( 'imajiner-part-' . $part['slug'], imajiner_file_uri( $css ), array( 'imajiner-base' ), (string) filemtime( $css ) );
+function imajiner_enqueue_part_style( array $part ) {
+	$css = imajiner_css_file( $part['file'] );
+	if ( file_exists( $css ) ) {
+		$handle = 'imajiner-part-' . $part['slug'];
+		wp_enqueue_style( $handle, imajiner_file_uri( $css ), array( 'imajiner-base' ), (string) filemtime( $css ) );
+		if ( did_action( 'wp_head' ) ) {
+			wp_print_styles( array( $handle ) );
 		}
 	}
 }
-add_action( 'wp_enqueue_scripts', 'imajiner_enqueue_part_styles', 20 );
