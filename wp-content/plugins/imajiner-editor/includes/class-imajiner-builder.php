@@ -24,6 +24,7 @@ class Imajiner_Builder {
 	 */
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_page' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'ai_page_link' ) );
 		add_action( 'admin_post_imajiner_create_template', array( __CLASS__, 'create_template' ) );
 		add_action( 'admin_post_imajiner_create_part', array( __CLASS__, 'create_part' ) );
 		add_action( 'admin_post_imajiner_save_locations', array( __CLASS__, 'save_locations' ) );
@@ -36,6 +37,13 @@ class Imajiner_Builder {
 	 */
 	public static function url() {
 		return admin_url( 'themes.php?page=' . self::PAGE );
+	}
+
+	public static function ai_page_link() {
+		$screen = get_current_screen();
+		if ( $screen && 'edit-page' === $screen->id && Imajiner_Generation::can_generate() ) {
+			printf( '<div class="notice notice-info"><p><a class="button" href="%s">%s</a></p></div>', esc_url( self::url() . '#imj-ai' ), esc_html__( 'New page with AI', 'imajiner-editor' ) );
+		}
 	}
 
 	/**
@@ -434,6 +442,19 @@ HTML;
 	 * Renders the screen.
 	 */
 	public static function render() {
+		if ( Imajiner_Generation::can_generate() ) {
+			wp_enqueue_script( 'imajiner-builder-ai', IMAJINER_EDITOR_URL . 'assets/js/builder-ai.js', array( 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
+			wp_localize_script(
+				'imajiner-builder-ai',
+				'imajinerBuilderAI',
+				array(
+					'restUrl' => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/ai/' ),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'baseCss' => get_template_directory_uri() . '/assets/css/base.css',
+					'childCss' => get_stylesheet_uri(),
+				)
+			);
+		}
 		$templates      = imajiner_get_templates();
 		$parts          = imajiner_get_parts();
 		$locations      = imajiner_template_locations();
@@ -456,6 +477,10 @@ HTML;
 
 			<?php if ( is_array( $notice ) ) : ?>
 				<div class="notice notice-<?php echo esc_attr( $notice[0] ); ?> is-dismissible"><p><?php echo esc_html( $notice[1] ); ?></p></div>
+			<?php endif; ?>
+
+			<?php if ( Imajiner_Generation::can_generate() ) : ?>
+				<?php require IMAJINER_EDITOR_DIR . 'views/builder-ai.php'; ?>
 			<?php endif; ?>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

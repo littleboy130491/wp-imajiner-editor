@@ -250,6 +250,7 @@ class Imajiner_Editor {
 				// A single template assigned to this post type applies when no template is chosen.
 				'assigned'     => $template && 'location' === $template['type'] ? $template['name'] : '',
 				'builderUrl'   => Imajiner_Builder::url(),
+				'aiUrl'        => Imajiner_Generation::can_generate() ? Imajiner_Builder::url() . '#imj-ai' : '',
 			)
 		);
 	}
@@ -341,6 +342,7 @@ class Imajiner_Editor {
 				'previewOrigin' => self::origin( home_url() ),
 				'restUrl'       => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/templates/' . $template['key'] ),
 				'restNonce'     => wp_create_nonce( 'wp_rest' ),
+				'normalizeUrl'  => Imajiner_Generation::can_generate() ? add_query_arg( 'normalize', $template['key'], Imajiner_Builder::url() ) . '#imj-ai' : '',
 			),
 			self::template_payload( $template, $files )
 		);

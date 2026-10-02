@@ -29,6 +29,7 @@ class Imajiner_Rest {
 	 * Registers the routes.
 	 */
 	public static function register_routes() {
+		Imajiner_Generation::register_routes();
 		// Key: a template file name ("page-home") or a part ("parts/site-footer").
 		$base = '/templates/(?P<key>(?:parts/)?[a-z0-9_-]+)';
 		$hash = array(

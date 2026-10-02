@@ -437,7 +437,8 @@
 					'details',
 					{ className: 'imj-warnings' },
 					h( 'summary', {}, warnings.length + ( warnings.length === 1 ? ' template contract warning' : ' template contract warnings' ) ),
-					h( 'ul', {}, warnings.map( ( warning ) => h( 'li', {}, warning ) ) )
+					h( 'ul', {}, warnings.map( ( warning ) => h( 'li', {}, warning ) ) ),
+					config.normalizeUrl ? h( 'a', { href: config.normalizeUrl }, 'Normalize with AI' ) : null
 				)
 			);
 		}
