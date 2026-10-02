@@ -70,10 +70,19 @@ class Imajiner_Template_Scanner {
 	private $warnings = array();
 
 	/**
-	 * @param string $source Template PHP source.
+	 * Whether a missing <!-- imj:section --> marker is reported. Parts don't need sections.
+	 *
+	 * @var bool
 	 */
-	public function __construct( $source ) {
-		$this->source = $source;
+	private $require_sections;
+
+	/**
+	 * @param string $source  Template PHP source.
+	 * @param array  $options Optional. require_sections (default true): warn when the template has no section markers.
+	 */
+	public function __construct( $source, array $options = array() ) {
+		$this->source           = $source;
+		$this->require_sections = ! isset( $options['require_sections'] ) || $options['require_sections'];
 		$this->mask();
 	}
 
@@ -181,7 +190,7 @@ class Imajiner_Template_Scanner {
 			$this->warnings[] = sprintf( '%s is never closed.', $this->describe( $node ) );
 		}
 
-		if ( 0 === $sections ) {
+		if ( 0 === $sections && $this->require_sections ) {
 			$this->warnings[] = 'No <!-- imj:section --> markers found.';
 		}
 
@@ -688,10 +697,12 @@ class Imajiner_Template_Scanner {
 			}
 		}
 
-		$index = array_search( 'get_template_part', $names, true );
-		if ( false !== $index ) {
-			$arg = $functions[ $index ]['arg'];
-			return array( 'partial', 'Template part', $arg ? trim( $arg, '\'"' ) : '' );
+		foreach ( array( 'imajiner_part', 'get_template_part' ) as $name ) {
+			$index = array_search( $name, $names, true );
+			if ( false !== $index ) {
+				$arg = $functions[ $index ]['arg'];
+				return array( 'partial', 'Template part', $arg ? trim( $arg, '\'"' ) : '' );
+			}
 		}
 
 		if ( $query ) {

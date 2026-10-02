@@ -51,11 +51,31 @@ class Imajiner_Prompts {
 			}
 		}
 
+		$locations = array();
+		foreach ( function_exists( 'imajiner_template_locations' ) ? imajiner_template_locations() : array() as $location => $label ) {
+			$locations[] = '  - `' . $location . '`: ' . $label;
+		}
+
+		$part_locations = array();
+		foreach ( function_exists( 'imajiner_part_locations' ) ? imajiner_part_locations() : array() as $location => $label ) {
+			$part_locations[] = '`' . $location . '` (' . $label . ')';
+		}
+
+		$parts = array();
+		foreach ( function_exists( 'imajiner_get_parts' ) ? imajiner_get_parts() : array() as $part ) {
+			$parts[] = '  - `' . $part['slug'] . '`: ' . $part['name']
+				. ( $part['location'] ? ', placed site-wide at `' . $part['location'] . '`' : ', included by templates' )
+				. ( $part['description'] ? '. ' . $part['description'] : '' );
+		}
+
 		return strtr(
 			self::template(),
 			array(
-				'{TOKENS}'      => $tokens ? implode( "\n", $tokens ) : '  - (no design tokens found in the theme)',
-				'{BREAKPOINTS}' => implode( "\n", $breakpoints ),
+				'{TOKENS}'         => $tokens ? implode( "\n", $tokens ) : '  - (no design tokens found in the theme)',
+				'{BREAKPOINTS}'    => implode( "\n", $breakpoints ),
+				'{LOCATIONS}'      => implode( "\n", $locations ),
+				'{PART_LOCATIONS}' => implode( ', ', $part_locations ),
+				'{PARTS}'          => $parts ? implode( "\n", $parts ) : '  - (none yet)',
 			)
 		);
 	}
@@ -93,6 +113,28 @@ You build and edit WordPress page templates for the Imajiner theme. After you wr
   <!-- /imj:section -->
 
 - Use `<div class="container">` inside a section for the standard content width.
+
+## Template types
+
+- **Page templates** have only `Template Name:` in the header. Editors choose them per page under Template.
+- **Single and archive templates** also declare where they apply: `Imajiner Location: <location>` (several separated by commas). The most specific match wins. Locations on this site:
+{LOCATIONS}
+- A single template for a post type may also have `Template Post Type: <post type>`, so it can be chosen per post.
+- Single templates show one post: `while ( have_posts() ) : the_post(); ... endwhile;` with `the_title()`, `the_content()`, `the_post_thumbnail()` and custom fields.
+- Archive and search templates loop over the main query with `have_posts()` / `the_post()`, end with `the_posts_pagination()`, and show a message when nothing is found. Use `the_archive_title()` for the heading, or `get_search_query()` on search results.
+
+## Template parts
+
+- Reusable pieces such as the header, footer or a call-to-action live in `{$dir}/parts/<slug>.php`. Their header has `Part Name:`, and optionally `Part Description:` and `Part Location:`, one of: {PART_LOCATIONS}.
+- A part at `header` or `footer` replaces the theme's default header or footer on every page. Never rebuild the site header or footer inside a template.
+- Include a part between sections with `<?php imajiner_part( 'slug' ); ?>`. Never copy a part's markup into a template.
+- A part renders inside `<div class="imj-part imj-part-<slug>">`. Its CSS lives in `{$dir}/parts/css/<slug>.css`, every selector scoped with `.imj-part-<slug>`. Parts don't need section markers.
+- Parts on this site:
+{PARTS}
+
+## Hooks
+
+- The theme fires the Theme Hook Alliance hooks (`tha_html_before`, `tha_body_top`, `tha_header_before`, `tha_header_after`, `tha_content_before`, `tha_content_top`, `tha_content_bottom`, `tha_content_after`, `tha_footer_before`, `tha_footer_after`, `tha_body_bottom`, and `tha_entry_*` / `tha_comments_*` in the default templates) as well as WordPress's `wp_head`, `wp_body_open` and `wp_footer`. Templates don't need to call them; plugins and parts attach to them.
 
 ## Editable content
 

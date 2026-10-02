@@ -94,6 +94,11 @@ a {
 
 /* Layout */
 
+/* Template part wrapper: scopes the part's CSS without adding a layout box. */
+.imj-part {
+	display: contents;
+}
+
 .container {
 	width: 100%;
 	max-width: calc(var(--imj-container) + 2 * var(--imj-gutter));

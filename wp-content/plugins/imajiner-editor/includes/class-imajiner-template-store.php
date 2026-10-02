@@ -151,6 +151,37 @@ class Imajiner_Template_Store {
 	}
 
 	/**
+	 * Creates a new template (or part) and its stylesheet.
+	 *
+	 * @param string $path  Template path; must not exist yet.
+	 * @param array  $files php and css source.
+	 * @return true|WP_Error
+	 */
+	public static function create( $path, array $files ) {
+		if ( file_exists( $path ) ) {
+			return new WP_Error( 'imajiner_exists', __( 'A template with that file name already exists.', 'imajiner-editor' ) );
+		}
+
+		$syntax = self::check_syntax( $files['php'] );
+		if ( is_wp_error( $syntax ) ) {
+			return $syntax;
+		}
+
+		// The stylesheet goes first, so the template never exists without it.
+		foreach ( array( self::css_path( $path ) => $files['css'], $path => $files['php'] ) as $file => $source ) {
+			if ( ! is_dir( dirname( $file ) ) && ! wp_mkdir_p( dirname( $file ) ) ) {
+				return new WP_Error( 'imajiner_not_writable', __( 'The template folder could not be created.', 'imajiner-editor' ) );
+			}
+			$result = self::replace_file( $file, $source );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Revisions of a template, newest first.
 	 *
 	 * @param string $path Template path.

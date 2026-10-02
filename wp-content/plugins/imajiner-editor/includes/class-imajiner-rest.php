@@ -2,9 +2,9 @@
 /**
  * REST API used by the editor screen.
  *
- * POST /imajiner/v1/templates/<post>/save                       Apply changes to the page's template and its stylesheet.
- * GET  /imajiner/v1/templates/<post>/revisions                  List saved versions.
- * POST /imajiner/v1/templates/<post>/revisions/<id>/restore     Restore a saved version.
+ * POST /imajiner/v1/templates/<key>/save                       Apply changes to the page's template and its stylesheet.
+ * GET  /imajiner/v1/templates/<key>/revisions                  List saved versions.
+ * POST /imajiner/v1/templates/<key>/revisions/<id>/restore     Restore a saved version.
  *
  * @package Imajiner_Editor
  */
@@ -29,7 +29,8 @@ class Imajiner_Rest {
 	 * Registers the routes.
 	 */
 	public static function register_routes() {
-		$base = '/templates/(?P<post>\d+)';
+		// Key: a template file name ("page-home") or a part ("parts/site-footer").
+		$base = '/templates/(?P<key>(?:parts/)?[a-z0-9_-]+)';
 		$hash = array(
 			'type'     => 'string',
 			'required' => true,
@@ -78,14 +79,12 @@ class Imajiner_Rest {
 	}
 
 	/**
-	 * Permission check shared by all routes.
+	 * Permission check shared by all routes: templates are site-wide files.
 	 *
-	 * @param WP_REST_Request $request Request.
 	 * @return bool
 	 */
-	public static function can_edit( WP_REST_Request $request ) {
-		$post = get_post( (int) $request['post'] );
-		return $post && Imajiner_Editor::user_can_edit( $post );
+	public static function can_edit() {
+		return Imajiner_Editor::user_can_edit_templates();
 	}
 
 	/**
@@ -99,10 +98,11 @@ class Imajiner_Rest {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function save( WP_REST_Request $request ) {
-		$path = self::template_path( $request );
-		if ( is_wp_error( $path ) ) {
-			return $path;
+		$template = self::get_template( $request );
+		if ( is_wp_error( $template ) ) {
+			return $template;
 		}
+		$path = $template['file'];
 
 		$files = Imajiner_Template_Store::read( $path );
 		if ( is_wp_error( $files ) ) {
@@ -122,7 +122,7 @@ class Imajiner_Rest {
 		$new_files = $files;
 
 		if ( $html_changes ) {
-			$scanner          = new Imajiner_Template_Scanner( $files['php'] );
+			$scanner          = new Imajiner_Template_Scanner( $files['php'], array( 'require_sections' => 'part' !== $template['type'] ) );
 			$new_files['php'] = $scanner->apply_changes( $html_changes );
 			if ( is_wp_error( $new_files['php'] ) ) {
 				return self::with_status( $new_files['php'], 400 );
@@ -137,7 +137,7 @@ class Imajiner_Rest {
 
 		if ( $style_changes ) {
 			$css         = new Imajiner_Css_Editor( $files['css'] );
-			$scope       = Imajiner_Editor::css_scope( $path );
+			$scope       = Imajiner_Editor::css_scope( $template );
 			$breakpoints = Imajiner_Editor::breakpoints();
 			$names       = array_keys( $breakpoints );
 
@@ -175,7 +175,7 @@ class Imajiner_Rest {
 			return self::with_status( $result, 400 );
 		}
 
-		return rest_ensure_response( Imajiner_Editor::template_payload( $path, $new_files ) );
+		return rest_ensure_response( Imajiner_Editor::template_payload( $template, $new_files ) );
 	}
 
 	/**
@@ -185,10 +185,11 @@ class Imajiner_Rest {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function revisions( WP_REST_Request $request ) {
-		$path = self::template_path( $request );
-		if ( is_wp_error( $path ) ) {
-			return $path;
+		$template = self::get_template( $request );
+		if ( is_wp_error( $template ) ) {
+			return $template;
 		}
+		$path = $template['file'];
 		return rest_ensure_response( Imajiner_Template_Store::get_revisions( $path ) );
 	}
 
@@ -199,10 +200,11 @@ class Imajiner_Rest {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function restore( WP_REST_Request $request ) {
-		$path = self::template_path( $request );
-		if ( is_wp_error( $path ) ) {
-			return $path;
+		$template = self::get_template( $request );
+		if ( is_wp_error( $template ) ) {
+			return $template;
 		}
+		$path = $template['file'];
 
 		$files = Imajiner_Template_Store::get_revision_files( $path, (int) $request['revision'] );
 		if ( is_wp_error( $files ) ) {
@@ -214,21 +216,21 @@ class Imajiner_Rest {
 			return self::with_status( $result, 400 );
 		}
 
-		return rest_ensure_response( Imajiner_Editor::template_payload( $path, $files ) );
+		return rest_ensure_response( Imajiner_Editor::template_payload( $template, $files ) );
 	}
 
 	/**
-	 * Resolves the request's post to its template path.
+	 * Looks up the request's template or part.
 	 *
 	 * @param WP_REST_Request $request Request.
-	 * @return string|WP_Error
+	 * @return array|WP_Error Template from Imajiner_Editor::get_template().
 	 */
-	private static function template_path( WP_REST_Request $request ) {
-		$path = Imajiner_Editor::get_template_path( get_post( (int) $request['post'] ) );
-		if ( ! $path ) {
-			return new WP_Error( 'imajiner_no_template', __( 'This page does not use an Imajiner template.', 'imajiner-editor' ), array( 'status' => 404 ) );
+	private static function get_template( WP_REST_Request $request ) {
+		$template = Imajiner_Editor::get_template( $request['key'] );
+		if ( ! $template ) {
+			return new WP_Error( 'imajiner_no_template', __( 'Template not found.', 'imajiner-editor' ), array( 'status' => 404 ) );
 		}
-		return $path;
+		return $template;
 	}
 
 	/**

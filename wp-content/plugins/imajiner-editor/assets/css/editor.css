@@ -730,3 +730,11 @@ body.imj-editor {
 .imj-canvas {
 	padding-bottom: 32px;
 }
+
+.imj-topbar__type {
+	padding: 1px 8px;
+	border-radius: 10px;
+	background: #3c434a;
+	color: #dcdcde;
+	font-size: 11px;
+}

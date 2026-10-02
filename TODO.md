@@ -28,9 +28,14 @@ What's already done is listed under "Status" in `AGENTS.md`.
 - [ ] **P2** Code view for locked PHP blocks
 - [ ] **P2** Hover/focus styles (`:hover`, `:focus-visible`) in the Style tab
 - [ ] **P2** Mixed-content text (text next to `<strong>`, `<a>`, …) updates the preview live, not only after saving
-- [ ] **P2** "New blank template" without AI
+- [x] "New blank template" without AI (Appearance → Imajiner Templates)
 - [ ] **P3** Show a diff in History before restoring
-- [ ] **P3** Edit header, footer, archive and single templates (currently page templates only)
+- [x] Template parts (header, footer, before footer, …) and single/archive templates with detected post types and taxonomies
+- [ ] **P2** Delete or rename templates and parts from Appearance → Imajiner Templates (today: delete the files by hand)
+- [ ] **P2** Display conditions for parts (e.g. "before footer" only on pages, or not on the home page); today a located part shows on every page that fires its hook
+- [ ] **P2** Test locations with a real custom post type and taxonomy (only post, page, category and tag exist on the test site)
+- [ ] **P3** Term-specific templates (e.g. one category) and front-page / blog-page locations
+- [ ] **P3** Load part CSS only on pages that render the part (today all parts' CSS loads everywhere)
 - [ ] **P3** Style rules the Style tab skips today: `min-width` / other `@media` conditions, compound selectors (`.a, .b`)
 - [ ] **P3** Editing lock when two people open the same template (today the second save just gets a conflict error)
 - [ ] **P3** Breakpoint settings in the UI (today only the `imajiner_editor_breakpoints` filter)

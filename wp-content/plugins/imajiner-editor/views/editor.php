@@ -29,9 +29,10 @@ defined( 'ABSPATH' ) || exit;
 <body class="imj-editor">
 
 <header class="imj-topbar">
-	<a class="imj-topbar__back" href="<?php echo esc_url( $data['post']['editUrl'] ); ?>">&larr; <?php esc_html_e( 'Back to page', 'imajiner-editor' ); ?></a>
+	<a class="imj-topbar__back" href="<?php echo esc_url( $data['post']['editUrl'] ); ?>">&larr; <?php echo esc_html( $data['post']['back'] ); ?></a>
 	<div class="imj-topbar__title">
 		<strong><?php echo esc_html( $data['post']['title'] ); ?></strong>
+		<span class="imj-topbar__type"><?php echo esc_html( $data['template']['type'] ); ?></span>
 		<code><?php echo esc_html( $data['template']['file'] ); ?></code>
 	</div>
 	<div id="imj-devices" class="imj-devices" role="group" aria-label="<?php esc_attr_e( 'Preview device', 'imajiner-editor' ); ?>"></div>

@@ -10,6 +10,7 @@
 ?>
 </main>
 
+<?php do_action( 'tha_body_bottom' ); ?>
 <?php wp_footer(); ?>
 </body>
 </html>
