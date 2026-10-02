@@ -5,12 +5,12 @@ What's already done is listed under "Status" in `AGENTS.md`.
 
 ## AI features
 
-- [ ] **P1** Create a template from a prompt
+- [x] **P1** Create a template from a prompt
   - "New page with AI" entry point (Pages screen and/or editor)
   - The model returns PHP + CSS; save them as `imajiner/<slug>.php` and `imajiner/css/<slug>.css` in the child theme, then assign the template to the page
   - Before saving: PHP syntax check, scanner contract check (no warnings), scoped CSS check. On failure, send the errors back to the model for one retry
   - Ask for a structured response (e.g. JSON with `slug`, `name`, `php`, `css`) instead of free text
-- [ ] **P1** Normalize: rewrite an existing PHP template so it follows the contract
+- [x] **P1** Normalize: rewrite an existing PHP template so it follows the contract
   - Show a before/after preview and the contract warnings that remain, save only after confirmation, keep a revision
 - [ ] **P2** "Edit with AI" on a selected section or element (e.g. "make this a 3-column grid"), returning only the changed section
 - [ ] **P2** Long requests: generation can exceed the 120 s HTTP timeout and PHP's `max_execution_time`. Use streaming or a background job with progress in the UI

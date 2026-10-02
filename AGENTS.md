@@ -151,7 +151,8 @@ wp-content/plugins/imajiner-editor/
 - Done: theme + child theme; editor with layers tree, click-to-select preview, properties panel; editing text, attributes (links, classes, alt, ...) and images; Style tab writing to the template stylesheet, with Desktop/Tablet/Mobile breakpoints; live preview; save with validation, version history and restore (PHP + CSS together); entry points (block editor panel, Pages row action)
 - Done: AI settings (10 providers + custom, primary/fallback model, encrypted keys, built-in system prompt + site additions, Load models / Test)
 - Done: template parts, single/archive templates with detected locations, Appearance → Imajiner Templates, THA hooks, Patterns menu hidden
-- Next: AI create from scratch + Normalize, built on `Imajiner_AI::chat()` and `Imajiner_Prompts::system_prompt()`
+- Done: AI create from scratch + Normalize, with validated PHP/CSS proposals, static before/after review, confirmation, draft page assignment and revision history
+- Next: section-level AI editing and the remaining editor operations in `TODO.md`
 - Full list of unfinished work: `TODO.md`
 - Testing: the team edits `page-example.php` by hand in the editor. Automated tests must use a throwaway template + page (and delete them afterwards), never the example page, so they can't overwrite or restore over someone's work
 - Local dev: WP-CLI needs the MySQL socket path: `php -d mysqli.default_socket=/var/run/mysqld/mysqld.sock $(readlink -f $(which wp)) ...`

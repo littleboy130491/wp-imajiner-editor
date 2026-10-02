@@ -448,9 +448,9 @@ HTML;
 				'imajiner-builder-ai',
 				'imajinerBuilderAI',
 				array(
-					'restUrl' => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/ai/' ),
-					'nonce'   => wp_create_nonce( 'wp_rest' ),
-					'baseCss' => get_template_directory_uri() . '/assets/css/base.css',
+					'restUrl'  => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/ai/' ),
+					'nonce'    => wp_create_nonce( 'wp_rest' ),
+					'baseCss'  => get_template_directory_uri() . '/assets/css/base.css',
 					'childCss' => get_stylesheet_uri(),
 				)
 			);

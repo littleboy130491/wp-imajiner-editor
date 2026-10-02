@@ -75,7 +75,7 @@ class Imajiner_Generation {
 				'content' => ( $template ? 'Normalize this template. Preserve its content, PHP behavior and assignments.' : 'Create a new page template.' )
 					. "\nReturn only a JSON object with string fields slug, name, php and css. No Markdown fences."
 					. "\nUse this exact metadata: " . wp_json_encode( $context )
-					. "\nCSS: every selector must begin with the scope above, followed by a descendant or child selector. Only plain rules and @media or @supports groups; no nesting, imports, keyframes or other at-rules."
+					. "\nCSS: every selector must be the scope above, or begin with it followed by a descendant or child selector. Only plain rules and @media or @supports groups; no nesting, imports, keyframes or other at-rules."
 					. "\nInstructions: " . $prompt
 					. ( $template ? "\nExisting files: " . wp_json_encode( $before ) : '' ),
 			),
@@ -227,8 +227,17 @@ class Imajiner_Generation {
 					}
 					$data['php'] = $updated;
 				}
-				$scanner = new Imajiner_Template_Scanner( $data['php'], array( 'require_sections' => 'part' !== $context['type'] ) );
-				$errors  = array_merge( $errors, $scanner->get_structure()['warnings'] );
+				$scanner   = new Imajiner_Template_Scanner( $data['php'], array( 'require_sections' => 'part' !== $context['type'] ) );
+				$structure = $scanner->get_structure();
+				$errors    = array_merge( $errors, $structure['warnings'] );
+				$labels    = array_column( $structure['php'], 'label' );
+				if ( 'part' === $context['type'] ) {
+					if ( array_intersect( array( 'Site header', 'Site footer' ), $labels ) ) {
+						$errors[] = 'Template parts must not call get_header() or get_footer().';
+					}
+				} elseif ( ! $labels || 'Site header' !== reset( $labels ) || 'Site footer' !== end( $labels ) ) {
+					$errors[] = 'Page and location templates must start with get_header() and end with get_footer().';
+				}
 				if ( ! $scanner->is_lossless() ) {
 					$errors[] = 'The scanner cannot round-trip the PHP source.';
 				}
