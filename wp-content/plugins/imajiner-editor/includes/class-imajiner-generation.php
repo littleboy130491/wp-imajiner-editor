@@ -9,6 +9,25 @@ defined( 'ABSPATH' ) || exit;
 
 class Imajiner_Generation {
 
+	public static function init() {
+		add_filter( 'imajiner_ai_job_handler_generation', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_action( 'imajiner_ai_job_discard_generation', array( __CLASS__, 'discard' ) );
+	}
+
+	public static function discard( $result ) {
+		$result = $result instanceof WP_REST_Response ? $result->get_data() : $result;
+		if ( is_array( $result ) && isset( $result['proposal'] ) ) delete_transient( self::proposal_key( $result['proposal'] ) );
+	}
+
+	public static function handle_job( $result, $payload, $job_id ) {
+		Imajiner_AI_Jobs::progress( $job_id, 20 );
+		$request = new WP_REST_Request( 'POST' );
+		$request->set_body_params( $payload );
+		$result = self::build( $request, true );
+		Imajiner_AI_Jobs::progress( $job_id, 90 );
+		return $result;
+	}
+
 	public static function register_routes() {
 		foreach ( array( 'generate', 'accept' ) as $action ) {
 			register_rest_route(
@@ -35,6 +54,10 @@ class Imajiner_Generation {
 	}
 
 	public static function generate( WP_REST_Request $request ) {
+		return self::build( $request, false );
+	}
+
+	private static function build( WP_REST_Request $request, $background ) {
 		$key      = $request['key'];
 		$template = $key ? Imajiner_Editor::get_template( $key ) : null;
 		if ( $key && ! $template ) {
@@ -68,6 +91,13 @@ class Imajiner_Generation {
 		$scope   = 'part' === $type ? '.imj-part-' . $slug : '.imj-' . $slug;
 		$headers = $template ? get_file_data( $path, self::headers( $type ) ) : array( 'Template Name' => $name, 'Template Post Type' => '', 'Imajiner Location' => '' );
 		$context = array( 'slug' => $slug, 'name' => $name, 'type' => $type, 'scope' => $scope, 'headers' => $headers );
+		$hash = Imajiner_Template_Store::hash( $before );
+		if ( ! $background ) {
+			return rest_ensure_response( Imajiner_AI_Jobs::enqueue( 'generation', array( 'key' => $key, 'name' => $name, 'prompt' => $prompt, 'hash' => $hash ) ) );
+		}
+		if ( ! hash_equals( $hash, (string) $request['hash'] ) ) {
+			return new WP_Error( 'imajiner_stale', __( 'The template changed. Generate a fresh proposal.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
 		$messages = array(
 			array( 'role' => 'system', 'content' => Imajiner_Prompts::system_prompt() ),
 			array(
@@ -117,11 +147,24 @@ class Imajiner_Generation {
 				'beforeWarnings' => $template ? $scanner->get_structure()['warnings'] : array(),
 				'warnings'       => array(),
 				'scope'          => $scope,
+				'usage'          => Imajiner_AI::last_usage(),
 			)
 		);
 	}
 
 	public static function accept( WP_REST_Request $request ) {
+		$lock = 'proposal:' . get_current_user_id() . ':' . $request['proposal'];
+		if ( ! Imajiner_AI_Jobs::acquire( $lock ) ) {
+			return new WP_Error( 'imajiner_busy', __( 'This proposal is already being accepted.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		try {
+			return self::accept_locked( $request );
+		} finally {
+			Imajiner_AI_Jobs::release( $lock );
+		}
+	}
+
+	private static function accept_locked( WP_REST_Request $request ) {
 		$transient = self::proposal_key( $request['proposal'] );
 		$proposal  = get_transient( $transient );
 		if ( ! is_array( $proposal ) ) {
@@ -176,13 +219,13 @@ class Imajiner_Generation {
 		return 'imajiner_ai_' . get_current_user_id() . '_' . $id;
 	}
 
-	private static function in_child_theme( $path ) {
+	public static function in_child_theme( $path ) {
 		$root = realpath( get_stylesheet_directory() );
 		$file = realpath( $path );
 		return $root && $file && 0 === strpos( $file, $root . DIRECTORY_SEPARATOR );
 	}
 
-	private static function static_markup( $php ) {
+	public static function static_markup( $php ) {
 		$html = '';
 		foreach ( token_get_all( $php ) as $token ) {
 			if ( is_array( $token ) && T_INLINE_HTML === $token[0] ) {
@@ -192,7 +235,7 @@ class Imajiner_Generation {
 		return $html;
 	}
 
-	private static function headers( $type ) {
+	public static function headers( $type ) {
 		$names = 'part' === $type ? array( 'Part Name', 'Part Description', 'Part Location' ) : array( 'Template Name', 'Template Post Type', 'Imajiner Location' );
 		return array_combine( $names, $names );
 	}

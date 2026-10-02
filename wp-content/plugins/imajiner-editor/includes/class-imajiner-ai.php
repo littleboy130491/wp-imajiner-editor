@@ -31,10 +31,37 @@ class Imajiner_AI {
 	 */
 	const ANTHROPIC_VERSION = '2023-06-01';
 
-	/**
-	 * Claude models that accept Anthropic's server-side refusal fallback ("fallbacks": "default").
-	 */
-	const ANTHROPIC_FALLBACK_MODELS = array( 'claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5' );
+	private static $attempts = array();
+	private static $response_meta = array();
+	private static $last_usage = array();
+
+	public static function init() {
+		add_action( 'rest_api_init', function () {
+			register_rest_route( Imajiner_Rest::NAMESPACE_V1, '/ai/usage', array( 'methods' => 'GET', 'permission_callback' => array( 'Imajiner_Generation', 'can_generate' ), 'callback' => function () { return rest_ensure_response( get_option( 'imajiner_ai_usage_' . get_current_user_id(), array() ) ); } ) );
+		} );
+	}
+
+	public static function last_usage() {
+		return self::$last_usage;
+	}
+
+	public static function smoke_from_env() {
+		if ( 'cli' !== PHP_SAPI || '1' !== getenv( 'IMAJINER_AI_SMOKE' ) ) return new WP_Error( 'imajiner_smoke_disabled', 'Opt in with IMAJINER_AI_SMOKE=1 in a CLI process.' );
+		$results = array();
+		foreach ( self::providers() as $id => $provider ) {
+			$key = getenv( $provider['constant'] );
+			if ( ! $key ) { $results[ $id ] = array( 'state' => 'skipped', 'reason' => 'missing_env_key' ); continue; }
+			if ( defined( $provider['constant'] ) ) { $results[ $id ] = array( 'state' => 'skipped', 'reason' => 'constant_already_defined' ); continue; }
+			define( $provider['constant'], $key );
+			$models = self::list_models( $id );
+			if ( is_wp_error( $models ) ) { $results[ $id ] = array( 'state' => 'failed', 'error' => $models->get_error_code() ); continue; }
+			$model = getenv( 'IMAJINER_' . strtoupper( $id ) . '_MODEL' );
+			if ( ! $model ) { $results[ $id ] = array( 'state' => 'skipped', 'models_count' => count( $models ), 'reason' => 'missing_env_model' ); continue; }
+			$reply = self::chat( array( array( 'role' => 'user', 'content' => 'Reply with the single word OK.' ) ), array( 'provider' => $id, 'model' => $model, 'max_tokens' => 1024, 'timeout' => 30 ) );
+			$results[ $id ] = array( 'state' => is_wp_error( $reply ) ? 'failed' : 'complete', 'models_count' => count( $models ), 'error' => is_wp_error( $reply ) ? $reply->get_error_code() : null, 'usage' => self::last_usage() );
+		}
+		return $results;
+	}
 
 	/**
 	 * Provider definitions.
@@ -64,8 +91,8 @@ class Imajiner_AI {
 				'label'         => 'Claude (Anthropic)',
 				'api'           => 'anthropic',
 				'base_url'      => 'https://api.anthropic.com/v1',
-				'key_url'       => 'https://platform.claude.com/',
-				'default_model' => 'claude-opus-5-5',
+				'key_url'       => 'https://platform.claude.com/settings/keys',
+				'default_model' => 'claude-opus-5',
 			),
 			'gemini'     => array(
 				'label'    => 'Google Gemini',
@@ -78,8 +105,9 @@ class Imajiner_AI {
 				'key_url'  => 'https://console.x.ai/',
 			),
 			'meta'       => array(
-				'label'    => 'Meta',
+				'label'    => 'Meta Model API',
 				'base_url' => 'https://api.meta.ai/v1',
+				'key_url'  => 'https://dev.meta.ai/docs/authentication',
 			),
 			'mistral'    => array(
 				'label'    => 'Mistral',
@@ -287,7 +315,39 @@ class Imajiner_AI {
 	 * @return string|WP_Error Reply text.
 	 */
 	public static function chat( array $messages, array $args = array() ) {
+		$system = Imajiner_Prompts::system_prompt();
+		$messages = array_values( array_filter( $messages, function ( $message ) use ( $system ) { return ! ( isset( $message['role'], $message['content'] ) && 'system' === $message['role'] && $system === $message['content'] ); } ) );
+		array_unshift( $messages, array( 'role' => 'system', 'content' => $system ) );
+		self::$attempts = array();
+		$valid = self::validate_messages( $messages );
+		$reply = is_wp_error( $valid ) ? $valid : self::chat_impl( $messages, $args );
+		self::$last_usage = array( 'id' => wp_generate_uuid4(), 'time' => time(), 'status' => is_wp_error( $reply ) ? 'failed' : 'complete', 'attempts' => self::$attempts, 'fallback_attempts' => max( 0, count( self::$attempts ) - 1 ), 'answered' => is_wp_error( $reply ) || ! self::$attempts ? null : end( self::$attempts ) );
+		$option = 'imajiner_ai_usage_' . get_current_user_id();
+		$logs = get_option( $option, array() );
+		$logs = array_values( array_filter( is_array( $logs ) ? $logs : array(), function ( $entry ) { return $entry['time'] > time() - 30 * DAY_IN_SECONDS; } ) );
+		$logs[] = self::$last_usage;
+		update_option( $option, array_slice( $logs, -100 ), false );
+		return $reply;
+	}
+
+	private static function validate_messages( array $messages ) {
+		foreach ( $messages as $message ) {
+			if ( ! isset( $message['role'], $message['content'] ) || ! in_array( $message['role'], array( 'system', 'user', 'assistant' ), true ) ) return new WP_Error( 'imajiner_ai_message', __( 'Invalid AI message.', 'imajiner-editor' ) );
+			if ( is_string( $message['content'] ) ) continue;
+			if ( 'user' !== $message['role'] || ! is_array( $message['content'] ) ) return new WP_Error( 'imajiner_ai_message', __( 'Invalid AI message content.', 'imajiner-editor' ) );
+			foreach ( $message['content'] as $part ) {
+				if ( isset( $part['type'], $part['text'] ) && 'text' === $part['type'] && is_string( $part['text'] ) ) continue;
+				$url = isset( $part['image_url']['url'] ) && is_string( $part['image_url']['url'] ) ? $part['image_url']['url'] : '';
+				$id = attachment_url_to_postid( $url );
+				if ( ! isset( $part['type'] ) || 'image_url' !== $part['type'] || 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || ! $id || ! wp_attachment_is_image( $id ) ) return new WP_Error( 'imajiner_ai_image', __( 'Use an HTTPS image from the media library.', 'imajiner-editor' ) );
+			}
+		}
+		return true;
+	}
+
+	private static function chat_impl( array $messages, array $args ) {
 		if ( isset( $args['provider'] ) ) {
+			if ( ! isset( self::providers()[ $args['provider'] ] ) ) return new WP_Error( 'imajiner_ai_no_provider', __( 'Unknown AI provider.', 'imajiner-editor' ) );
 			$model = isset( $args['model'] ) ? $args['model'] : self::providers()[ $args['provider'] ]['default_model'];
 			return self::chat_with( $args['provider'], $model, $messages, $args );
 		}
@@ -329,6 +389,13 @@ class Imajiner_AI {
 	 * @return string|WP_Error Reply text.
 	 */
 	private static function chat_with( $provider, $model, array $messages, array $args ) {
+		self::$response_meta = array();
+		$reply = self::chat_with_impl( $provider, $model, $messages, $args );
+		self::$attempts[] = array( 'provider' => $provider, 'requested_model' => $model, 'model' => isset( self::$response_meta['model'] ) ? self::$response_meta['model'] : null, 'tokens' => isset( self::$response_meta['tokens'] ) ? self::$response_meta['tokens'] : null, 'status' => is_wp_error( $reply ) ? 'failed' : 'complete', 'error' => is_wp_error( $reply ) ? $reply->get_error_code() : null );
+		return $reply;
+	}
+
+	private static function chat_with_impl( $provider, $model, array $messages, array $args ) {
 		if ( ! isset( self::providers()[ $provider ] ) ) {
 			return new WP_Error( 'imajiner_ai_no_provider', __( 'Unknown AI provider.', 'imajiner-editor' ), array( 'status' => 400 ) );
 		}
@@ -343,7 +410,7 @@ class Imajiner_AI {
 		}
 
 		$max_tokens = isset( $args['max_tokens'] ) ? (int) $args['max_tokens'] : 16000;
-		$timeout    = isset( $args['timeout'] ) ? $args['timeout'] : 120;
+		$timeout    = isset( $args['timeout'] ) ? min( 60, max( 1, (int) $args['timeout'] ) ) : 60;
 
 		if ( 'anthropic' === self::providers()[ $provider ]['api'] ) {
 			return self::chat_anthropic( $provider, $model, $messages, $max_tokens, $timeout );
@@ -364,7 +431,8 @@ class Imajiner_AI {
 			return new WP_Error( 'imajiner_ai_bad_response', __( 'The AI provider sent a response the editor doesn’t understand.', 'imajiner-editor' ), array( 'status' => 502 ) );
 		}
 
-		return (string) $data['choices'][0]['message']['content'];
+		if ( ! is_string( $data['choices'][0]['message']['content'] ) || ! empty( $data['choices'][0]['message']['refusal'] ) || ( isset( $data['choices'][0]['finish_reason'] ) && 'length' === $data['choices'][0]['finish_reason'] ) ) return new WP_Error( 'imajiner_ai_incomplete', __( 'The AI response was refused or incomplete.', 'imajiner-editor' ) );
+		return $data['choices'][0]['message']['content'];
 	}
 
 	/**
@@ -374,6 +442,7 @@ class Imajiner_AI {
 	 * @return string[]|WP_Error
 	 */
 	public static function list_models( $provider ) {
+		if ( ! isset( self::providers()[ $provider ] ) ) return new WP_Error( 'imajiner_ai_no_provider', __( 'Unknown AI provider.', 'imajiner-editor' ) );
 		// Anthropic pages its model list; ask for everything at once.
 		$path = 'anthropic' === self::providers()[ $provider ]['api'] ? '/models?limit=1000' : '/models';
 
@@ -413,6 +482,11 @@ class Imajiner_AI {
 			if ( 'system' === $message['role'] ) {
 				$system[] = $message['content'];
 			} else {
+				if ( is_array( $message['content'] ) ) {
+					$message['content'] = array_map( function ( $part ) {
+						return 'text' === $part['type'] ? array( 'type' => 'text', 'text' => $part['text'] ) : array( 'type' => 'image', 'source' => array( 'type' => 'url', 'url' => $part['image_url']['url'] ) );
+					}, $message['content'] );
+				}
 				$turns[] = $message;
 			}
 		}
@@ -426,14 +500,7 @@ class Imajiner_AI {
 			$body['system'] = implode( "\n\n", $system );
 		}
 
-		$headers = array();
-		if ( in_array( $model, self::ANTHROPIC_FALLBACK_MODELS, true ) ) {
-			// If a safety classifier declines, Anthropic retries on its recommended fallback model.
-			$body['fallbacks']        = 'default';
-			$headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
-		}
-
-		$data = self::request( $provider, 'POST', '/messages', $body, $timeout, $headers );
+		$data = self::request( $provider, 'POST', '/messages', $body, $timeout );
 		if ( is_wp_error( $data ) ) {
 			return $data;
 		}
@@ -442,6 +509,7 @@ class Imajiner_AI {
 		if ( isset( $data['stop_reason'] ) && 'refusal' === $data['stop_reason'] ) {
 			return new WP_Error( 'imajiner_ai_refused', __( 'The model declined this request.', 'imajiner-editor' ), array( 'status' => 422 ) );
 		}
+		if ( isset( $data['stop_reason'] ) && 'max_tokens' === $data['stop_reason'] ) return new WP_Error( 'imajiner_ai_incomplete', __( 'The AI response was incomplete.', 'imajiner-editor' ) );
 
 		if ( ! isset( $data['content'] ) || ! is_array( $data['content'] ) ) {
 			return new WP_Error( 'imajiner_ai_bad_response', __( 'The AI provider sent a response the editor doesn’t understand.', 'imajiner-editor' ), array( 'status' => 502 ) );
@@ -501,6 +569,7 @@ class Imajiner_AI {
 				'headers' => array_merge( $headers, $extra ),
 				'body'    => null === $body ? null : wp_json_encode( $body ),
 				'timeout' => $timeout,
+				'redirection' => 0,
 			)
 		);
 
@@ -534,6 +603,13 @@ class Imajiner_AI {
 
 		if ( ! is_array( $data ) ) {
 			return new WP_Error( 'imajiner_ai_bad_response', __( 'The AI provider did not return JSON. Check the base URL.', 'imajiner-editor' ), array( 'status' => 502 ) );
+		}
+		if ( 'POST' === $method ) {
+			$tokens = array();
+			foreach ( array( 'prompt_tokens', 'completion_tokens', 'total_tokens', 'input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens' ) as $field ) {
+				if ( isset( $data['usage'][ $field ] ) && is_numeric( $data['usage'][ $field ] ) ) $tokens[ $field ] = max( 0, (int) $data['usage'][ $field ] );
+			}
+			self::$response_meta = array( 'model' => isset( $data['model'] ) && is_string( $data['model'] ) ? self::scrub( sanitize_text_field( $data['model'] ), $key ) : null, 'tokens' => $tokens ?: null );
 		}
 
 		return $data;

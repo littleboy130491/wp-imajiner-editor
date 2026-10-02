@@ -14,6 +14,8 @@
 	const cancel = document.getElementById( 'imj-ai-cancel' );
 	let proposal = '';
 	let busy = false;
+	let job = 0;
+	const stop = document.getElementById( 'imj-ai-stop' );
 
 	function list( target, items ) {
 		target.replaceChildren();
@@ -35,6 +37,7 @@
 		form.querySelectorAll( 'input, textarea, select, button' ).forEach( ( field ) => { field.disabled = value; } );
 		accept.disabled = value;
 		cancel.disabled = value;
+		stop.hidden = ! value || ! job;
 	}
 
 	async function request( action, data ) {
@@ -50,6 +53,31 @@
 			throw new Error( result.message || __( 'Request failed.', 'imajiner-editor' ) );
 		}
 		return result;
+	}
+
+	stop.addEventListener( 'click', async () => {
+		if ( ! job ) return;
+		try {
+			const response = await fetch( config.restUrl + 'jobs/' + job, { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } } );
+			const data = await response.json();
+			if ( ! response.ok ) throw new Error( data.message || __( 'AI task unavailable.', 'imajiner-editor' ) );
+			job = 0;
+			status.textContent = __( 'AI task cancelled. Nothing was saved.', 'imajiner-editor' );
+		} catch ( error ) { status.textContent = error.message; }
+	} );
+
+	async function poll( id ) {
+		while ( job === id ) {
+			const response = await fetch( config.restUrl + 'jobs/' + id, { credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } } );
+			const data = await response.json();
+			if ( ! response.ok ) throw new Error( data.message || __( 'AI task unavailable.', 'imajiner-editor' ) );
+			if ( job !== id ) return null;
+			if ( data.state === 'complete' ) return data.result;
+			if ( data.state === 'failed' || data.state === 'cancelled' ) throw new Error( data.error ? data.error.message : __( 'AI task cancelled.', 'imajiner-editor' ) );
+			status.textContent = data.state === 'queued' ? __( 'Queued. Waiting for the background worker…', 'imajiner-editor' ) : __( 'Generating and validating in the background…', 'imajiner-editor' );
+			await new Promise( ( resolve ) => setTimeout( resolve, 1500 ) );
+		}
+		return null;
 	}
 
 	function escape( value ) {
@@ -111,7 +139,11 @@
 		setBusy( true );
 		status.textContent = __( 'Generating and validating… This may take a couple of minutes.', 'imajiner-editor' );
 		try {
-			const result = await request( 'generate', { key: key.value, name: name.value, prompt: prompt.value } );
+			const queued = await request( 'generate', { key: key.value, name: name.value, prompt: prompt.value } );
+			job = queued.job;
+			stop.hidden = false;
+			const result = await poll( job );
+			if ( ! result ) return;
 			proposal = result.proposal;
 			if ( key.value ) panel( __( 'Before', 'imajiner-editor' ), result.before, result.beforeMarkup, result.scope, result.beforeWarnings );
 			panel( __( 'After', 'imajiner-editor' ), result.after, result.afterMarkup, result.scope, [] );
@@ -121,6 +153,7 @@
 		} catch ( error ) {
 			status.textContent = error.message;
 		} finally {
+			job = 0;
 			setBusy( false );
 		}
 	} );

@@ -29,7 +29,7 @@ class Imajiner_Prompts {
 			$prompt .= "\n\n## Site-specific instructions\n\n" . $append;
 		}
 
-		return $prompt;
+		return apply_filters( 'imajiner_ai_system_prompt', $prompt );
 	}
 
 	/**
