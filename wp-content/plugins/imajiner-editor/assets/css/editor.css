@@ -134,6 +134,21 @@ body.imj-editor {
 	padding: 8px 0;
 }
 
+.imj-add-section {
+	margin: 12px;
+}
+
+.imj-structure-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.imj-tree__row[draggable="true"] {
+	cursor: grab;
+}
+
 .imj-tree__list {
 	margin: 0;
 	padding: 0;

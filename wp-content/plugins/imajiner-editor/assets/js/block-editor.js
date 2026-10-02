@@ -48,7 +48,9 @@
 			];
 		}
 
-		return el( Panel, { name: 'imajiner-editor', title: __( 'Imajiner Editor', 'imajiner-editor' ) }, content );
+		return el( Panel, { name: 'imajiner-editor', title: __( 'Imajiner Editor', 'imajiner-editor' ) }, content,
+			config.aiUrl && el( 'p', null, el( ExternalLink, { href: config.aiUrl }, __( 'New page with AI', 'imajiner-editor' ) ) )
+		);
 	}
 
 	wp.plugins.registerPlugin( 'imajiner-editor', { render: ImajinerPanel } );

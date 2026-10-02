@@ -33,6 +33,9 @@
 	const index = new Map();
 	// Change key => change sent to the save endpoint.
 	const changes = new Map();
+	let operations = [];
+	let saved = { hash: data.hash, structure: data.structure, styles: data.styles };
+	let draggedId = null;
 	let selectedId = null;
 	let busy = false;
 	let activeTab = 'content';
@@ -334,10 +337,15 @@
 	}
 
 	function updateToolbar() {
-		const count = changes.size;
+		const count = changes.size + operations.length;
 		saveButton.disabled = busy || ! count;
 		discardButton.disabled = busy || ! count;
 		saveButton.textContent = count ? 'Save (' + count + ')' : 'Save';
+		propsEl.inert = busy;
+		treeEl.inert = busy;
+		if ( document.getElementById( 'imj-add-section' ) ) {
+			document.getElementById( 'imj-add-section' ).disabled = busy;
+		}
 	}
 
 	function setStatus( message, type ) {
@@ -401,6 +409,29 @@
 
 		const label = h( 'span', { className: 'imj-tree__label' }, renderRowContent( node ) );
 		const row = h( 'div', { className: 'imj-tree__row imj-tree__row--' + node.type, onClick: () => select( node.id, 'tree' ) }, toggle, label );
+		row.draggable = !! node.mutable;
+		row.addEventListener( 'dragstart', ( event ) => {
+			if ( busy || ! node.mutable ) {
+				event.preventDefault();
+				return;
+			}
+			draggedId = node.id;
+			event.dataTransfer.setData( 'text/plain', node.id );
+			event.dataTransfer.effectAllowed = 'move';
+		} );
+		row.addEventListener( 'dragover', ( event ) => {
+			if ( canMove( draggedId, node.id ) ) {
+				event.preventDefault();
+				event.dataTransfer.dropEffect = 'move';
+			}
+		} );
+		row.addEventListener( 'drop', ( event ) => {
+			event.preventDefault();
+			const position = event.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2 ? 'before' : 'after';
+			moveNode( draggedId, node.id, position );
+			draggedId = null;
+		} );
+		row.addEventListener( 'dragend', () => { draggedId = null; } );
 		const item = h( 'li', { className: 'imj-tree__item', role: 'treeitem' }, row, children.length ? renderNodes( children, node ) : null );
 
 		index.set( node.id, { node, parent, row, item, label } );
@@ -437,10 +468,98 @@
 					'details',
 					{ className: 'imj-warnings' },
 					h( 'summary', {}, warnings.length + ( warnings.length === 1 ? ' template contract warning' : ' template contract warnings' ) ),
-					h( 'ul', {}, warnings.map( ( warning ) => h( 'li', {}, warning ) ) )
+					h( 'ul', {}, warnings.map( ( warning ) => h( 'li', {}, warning ) ) ),
+					data.normalizeUrl ? h( 'a', { href: data.normalizeUrl }, 'Normalize with AI' ) : null
 				)
 			);
 		}
+	}
+
+	/* Structural edits are staged on the server so ids and PHP remain accurate. */
+
+	function canMove( id, target ) {
+		const source = index.get( id );
+		const destination = index.get( target );
+		return ! busy && source && destination && id !== target && source.node.mutable && source.node.group === destination.node.group && source.parent === destination.parent && [ 'element', 'section' ].includes( destination.node.type );
+	}
+
+	function moveNode( id, target, position ) {
+		if ( canMove( id, target ) ) {
+			stageStructure( { type: 'move', id, target, position } );
+		}
+	}
+
+	function structuralControls( node ) {
+		if ( ! [ 'element', 'section' ].includes( node.type ) ) {
+			return null;
+		}
+		const controls = [];
+		if ( node.container ) {
+			const starter = h( 'select', { 'aria-label': 'Element to add' },
+				[ 'heading', 'paragraph', 'link', 'image', 'div' ].map( ( name ) => h( 'option', { value: name }, name ) ) );
+			let target = node;
+			if ( node.type === 'section' ) {
+				target = node.children.find( ( child ) => child.type === 'element' && child.container ) || node;
+			}
+			controls.push( starter, h( 'button', { type: 'button', className: 'imj-button', onClick: () => stageStructure( { type: 'insert', target: target.id, position: 'inside', starter: starter.value } ) }, 'Add element' ) );
+		}
+		if ( node.mutable ) {
+			controls.push(
+				h( 'button', { type: 'button', className: 'imj-button', onClick: () => stageStructure( { type: 'duplicate', id: node.id } ) }, 'Duplicate' ),
+				h( 'button', { type: 'button', className: 'imj-button', onClick: ( event ) => {
+					if ( event.currentTarget.dataset.confirm !== 'yes' ) {
+						event.currentTarget.dataset.confirm = 'yes';
+						event.currentTarget.textContent = 'Confirm delete';
+						return;
+					}
+					stageStructure( { type: 'delete', id: node.id } );
+				} }, 'Delete' )
+			);
+			const entry = index.get( node.id );
+			const siblings = entry.parent ? entry.parent.children : structure.tree;
+			const at = siblings.indexOf( node );
+			[ [ -1, 'Move up', 'before' ], [ 1, 'Move down', 'after' ] ].forEach( ( [ step, label, position ] ) => {
+				const target = siblings[ at + step ];
+				controls.push( h( 'button', { type: 'button', className: 'imj-button', disabled: ! target || ! canMove( node.id, target.id ), onClick: () => moveNode( node.id, target.id, position ) }, label ) );
+			} );
+		} else {
+			controls.push( h( 'p', { className: 'imj-muted' }, 'This container includes PHP. Edit its static children; the container cannot be deleted, duplicated or moved.' ) );
+		}
+		return h( 'div', { className: 'imj-structure-controls' }, controls );
+	}
+
+	async function stageStructure( operation ) {
+		if ( busy ) {
+			return;
+		}
+		const proposed = [ ...operations ];
+		if ( changes.size ) {
+			proposed.push( { type: 'batch', changes: [ ...changes.values() ] } );
+		}
+		proposed.push( { type: 'structure', operation } );
+		busy = true;
+		updateToolbar();
+		setStatus( 'Updating structure…' );
+		try {
+			const result = await api( 'POST', '/stage', { hash, changes: proposed } );
+			operations = proposed;
+			changes.clear();
+			structure = result.structure;
+			php = structure.php;
+			styles = result.styles;
+			selectedId = null;
+			styleTargets.clear();
+			renderTree();
+			renderEmptyProps();
+			const url = new URL( data.previewUrl );
+			url.searchParams.set( 'imajiner_stage', result.stage );
+			frame.src = url.toString();
+			setStatus( 'Unsaved structural changes' );
+		} catch ( error ) {
+			setStatus( error.message, 'error' );
+		}
+		busy = false;
+		updateToolbar();
 	}
 
 	/* Properties panel */
@@ -918,6 +1037,7 @@
 			content.push( field( 'PHP', h( 'pre', { className: 'imj-code' }, info.code ) ) );
 		}
 
+		content.push( structuralControls( node ) );
 		propsEl.replaceChildren( ...content.filter( Boolean ) );
 	}
 
@@ -963,6 +1083,18 @@
 
 	// Re-sends unsaved changes after the preview (re)loads, so it keeps showing them.
 	function replayChanges() {
+		const dragNodes = new Map();
+		index.forEach( ( { node } ) => {
+			if ( node.type === 'element' ) {
+				dragNodes.set( node.id, { element: node.id, id: node.id, draggable: !! node.mutable } );
+			}
+		} );
+		index.forEach( ( { node } ) => {
+			if ( node.type === 'section' ) {
+				firstElements( node.children ).forEach( ( element ) => dragNodes.set( element, { element, id: node.id, draggable: !! node.mutable } ) );
+			}
+		} );
+		sendToPreview( { type: 'imj:drag-config', nodes: [ ...dragNodes.values() ] } );
 		changes.forEach( ( change ) => {
 			if ( change.type === 'attr' ) {
 				sendToPreview( { type: 'imj:apply', id: change.id, name: change.name, value: change.value } );
@@ -1018,6 +1150,8 @@
 
 	// Takes a fresh structure from the server after the template file changed.
 	function loadTemplate( result ) {
+		saved = result;
+		operations = [];
 		hash = result.hash;
 		structure = result.structure;
 		php = structure.php;
@@ -1030,19 +1164,19 @@
 			selectedId = null;
 			renderEmptyProps();
 		}
-		sendToPreview( { type: 'imj:reload' } );
+		frame.src = data.previewUrl;
 		updateToolbar();
 	}
 
 	async function save() {
-		if ( busy || ! changes.size ) {
+		if ( busy || ( ! changes.size && ! operations.length ) ) {
 			return;
 		}
 		busy = true;
 		updateToolbar();
 		setStatus( 'Saving…' );
 		try {
-			loadTemplate( await api( 'POST', '/save', { hash, changes: [ ...changes.values() ] } ) );
+			loadTemplate( await api( 'POST', '/save', { hash, changes: [ ...operations, ...( changes.size ? [ { type: 'batch', changes: [ ...changes.values() ] } ] : [] ) ] } ) );
 			setStatus( 'Saved', 'success' );
 		} catch ( error ) {
 			setStatus( error.message, 'error' );
@@ -1052,16 +1186,12 @@
 	}
 
 	function discard() {
-		if ( busy || ! changes.size ) {
+		if ( busy || ( ! changes.size && ! operations.length ) ) {
 			return;
 		}
-		changes.clear();
-		renderTree();
-		if ( selectedId && index.has( selectedId ) ) {
-			select( selectedId, 'tree' );
-		}
-		sendToPreview( { type: 'imj:reload' } );
-		updateToolbar();
+		selectedId = null;
+		styleTargets.clear();
+		loadTemplate( saved );
 		setStatus( 'Changes discarded' );
 	}
 
@@ -1112,7 +1242,7 @@
 	}
 
 	async function restore( revision, button ) {
-		if ( changes.size ) {
+		if ( changes.size || operations.length ) {
 			setStatus( 'Save or discard your changes before restoring.', 'error' );
 			return;
 		}
@@ -1143,8 +1273,10 @@
 		if ( event.origin !== data.previewOrigin || event.source !== frame.contentWindow || ! event.data ) {
 			return;
 		}
-		if ( event.data.type === 'imj:select' ) {
+		if ( event.data.type === 'imj:select' && ! busy ) {
 			select( event.data.id, 'preview' );
+		} else if ( event.data.type === 'imj:move' ) {
+			moveNode( event.data.id, event.data.target, event.data.position );
 		} else if ( event.data.type === 'imj:ready' ) {
 			replayChanges();
 			highlight( false );
@@ -1158,6 +1290,7 @@
 
 	saveButton.addEventListener( 'click', save );
 	discardButton.addEventListener( 'click', discard );
+	document.getElementById( 'imj-add-section' ).addEventListener( 'click', () => stageStructure( { type: 'insert', target: 'root', position: 'inside', starter: 'section' } ) );
 
 	historyToggle.addEventListener( 'click', () => ( historyPanel.hidden ? openHistory() : closeHistory() ) );
 	document.addEventListener( 'click', ( event ) => {
@@ -1176,7 +1309,7 @@
 	} );
 
 	window.addEventListener( 'beforeunload', ( event ) => {
-		if ( changes.size ) {
+		if ( changes.size || operations.length ) {
 			event.preventDefault();
 			event.returnValue = '';
 		}

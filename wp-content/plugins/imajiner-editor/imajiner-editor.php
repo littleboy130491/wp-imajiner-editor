@@ -28,6 +28,7 @@ require_once IMAJINER_EDITOR_DIR . 'includes/class-imajiner-builder.php';
 require_once IMAJINER_EDITOR_DIR . 'includes/class-imajiner-secrets.php';
 require_once IMAJINER_EDITOR_DIR . 'includes/class-imajiner-ai.php';
 require_once IMAJINER_EDITOR_DIR . 'includes/class-imajiner-prompts.php';
+require_once IMAJINER_EDITOR_DIR . 'includes/class-imajiner-generation.php';
 require_once IMAJINER_EDITOR_DIR . 'includes/class-imajiner-settings.php';
 
 add_action( 'init', array( 'Imajiner_Template_Store', 'init' ) );

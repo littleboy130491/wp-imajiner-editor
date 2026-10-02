@@ -29,6 +29,7 @@ class Imajiner_Rest {
 	 * Registers the routes.
 	 */
 	public static function register_routes() {
+		Imajiner_Generation::register_routes();
 		// Key: a template file name ("page-home") or a part ("parts/site-footer").
 		$base = '/templates/(?P<key>(?:parts/)?[a-z0-9_-]+)';
 		$hash = array(
@@ -52,6 +53,20 @@ class Imajiner_Rest {
 						'minItems' => 1,
 						'maxItems' => 500,
 					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			$base . '/stage',
+			array(
+				'methods' => WP_REST_Server::CREATABLE,
+				'callback' => array( __CLASS__, 'stage' ),
+				'permission_callback' => array( __CLASS__, 'can_edit' ),
+				'args' => array(
+					'hash' => $hash,
+					'changes' => array( 'type' => 'array', 'required' => true, 'minItems' => 1, 'maxItems' => 500 ),
 				),
 			)
 		);
@@ -98,6 +113,21 @@ class Imajiner_Rest {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function save( WP_REST_Request $request ) {
+		return self::edit( $request, true );
+	}
+
+	/**
+	 * Compiles unsaved operations for the live preview.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function stage( WP_REST_Request $request ) {
+		return self::edit( $request, false );
+	}
+
+	/** Applies an ordered list of edits, optionally writing the result. */
+	private static function edit( WP_REST_Request $request, $save ) {
 		$template = self::get_template( $request );
 		if ( is_wp_error( $template ) ) {
 			return $template;
@@ -108,10 +138,76 @@ class Imajiner_Rest {
 		if ( is_wp_error( $files ) ) {
 			return $files;
 		}
+		if ( $request['hash'] !== Imajiner_Template_Store::hash( $files ) ) {
+			return new WP_Error( 'imajiner_conflict', __( 'The template changed. Reload before editing.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		$new_files = $files;
+		$count = 0;
+		$pending = array();
+		foreach ( array_merge( $request['changes'], array( array( 'type' => 'batch', 'changes' => array() ) ) ) as $change ) {
+			if ( ! is_array( $change ) || ! isset( $change['type'] ) ) {
+				return new WP_Error( 'imajiner_invalid_change', __( 'Invalid change.', 'imajiner-editor' ), array( 'status' => 400 ) );
+			}
+			if ( ! in_array( $change['type'], array( 'structure', 'batch' ), true ) ) {
+				$pending[] = $change;
+				continue;
+			}
+			if ( $pending ) {
+				$new_files = self::apply_edits( $template, $new_files, $pending );
+				$count += count( $pending );
+				$pending = array();
+				if ( is_wp_error( $new_files ) ) {
+					return self::with_status( $new_files, 400 );
+				}
+			}
+			if ( 'batch' === $change['type'] ) {
+				if ( ! isset( $change['changes'] ) || ! is_array( $change['changes'] ) || count( $change['changes'] ) > 500 ) {
+					return new WP_Error( 'imajiner_invalid_change', __( 'Invalid change batch.', 'imajiner-editor' ), array( 'status' => 400 ) );
+				}
+				$new_files = self::apply_edits( $template, $new_files, $change['changes'] );
+				$count += count( $change['changes'] );
+			} else {
+				if ( ! isset( $change['operation'] ) || ! is_array( $change['operation'] ) ) {
+					return new WP_Error( 'imajiner_structure', __( 'Invalid structural operation.', 'imajiner-editor' ), array( 'status' => 400 ) );
+				}
+				$scanner = new Imajiner_Template_Scanner( $new_files['php'], array( 'require_sections' => 'part' !== $template['type'] ) );
+				$source = $scanner->apply_structure( $change['operation'] );
+				if ( is_wp_error( $source ) ) {
+					return self::with_status( $source, 400 );
+				}
+				$new_files['php'] = $source;
+				++$count;
+			}
+			if ( is_wp_error( $new_files ) ) {
+				return self::with_status( $new_files, 400 );
+			}
+			if ( $count > 500 || strlen( $new_files['php'] ) > 1048576 || strlen( $new_files['css'] ) > 1048576 ) {
+				return new WP_Error( 'imajiner_edit_limit', __( 'Too many changes. Save before continuing.', 'imajiner-editor' ), array( 'status' => 400 ) );
+			}
+		}
+		try {
+			token_get_all( $new_files['php'], TOKEN_PARSE );
+		} catch ( ParseError $error ) {
+			return new WP_Error( 'imajiner_syntax', $error->getMessage(), array( 'status' => 400 ) );
+		}
+		if ( ! $save ) {
+			$id = wp_generate_uuid4();
+			set_transient( 'imajiner_stage_' . get_current_user_id() . '_' . $id, array( 'key' => $template['key'], 'stylesheet' => get_stylesheet(), 'hash' => $request['hash'], 'files' => $new_files ), HOUR_IN_SECONDS );
+			$result = Imajiner_Editor::template_payload( $template, $new_files );
+			$result['hash'] = $request['hash'];
+			$result['stage'] = $id;
+			return rest_ensure_response( $result );
+		}
+		$result = Imajiner_Template_Store::write( $path, $request['hash'], $new_files, sprintf( _n( 'Before saving %d change', 'Before saving %d changes', $count, 'imajiner-editor' ), $count ) );
+		return is_wp_error( $result ) ? self::with_status( $result, 400 ) : rest_ensure_response( Imajiner_Editor::template_payload( $template, $new_files ) );
+	}
+
+	/** Applies one batch whose node ids share the same scanner structure. */
+	private static function apply_edits( array $template, array $files, array $changes ) {
 
 		$html_changes  = array();
 		$style_changes = array();
-		foreach ( $request['changes'] as $change ) {
+		foreach ( $changes as $change ) {
 			if ( is_array( $change ) && isset( $change['type'] ) && 'style' === $change['type'] ) {
 				$style_changes[] = $change;
 			} else {
@@ -163,19 +259,7 @@ class Imajiner_Rest {
 			$new_files['css'] = $css->get_css();
 		}
 
-		$count  = count( $request['changes'] );
-		$result = Imajiner_Template_Store::write(
-			$path,
-			$request['hash'],
-			$new_files,
-			/* translators: %d: number of changes. */
-			sprintf( _n( 'Before saving %d change', 'Before saving %d changes', $count, 'imajiner-editor' ), $count )
-		);
-		if ( is_wp_error( $result ) ) {
-			return self::with_status( $result, 400 );
-		}
-
-		return rest_ensure_response( Imajiner_Editor::template_payload( $template, $new_files ) );
+		return $new_files;
 	}
 
 	/**
