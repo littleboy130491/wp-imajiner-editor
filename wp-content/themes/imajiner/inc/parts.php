@@ -51,11 +51,6 @@ function imajiner_part_locations() {
  * @return array Slug => slug, name, location, description, file.
  */
 function imajiner_get_parts() {
-	static $parts = null;
-	if ( null !== $parts ) {
-		return $parts;
-	}
-
 	$parts     = array();
 	$locations = imajiner_part_locations();
 
@@ -72,6 +67,9 @@ function imajiner_get_parts() {
 					'name'        => 'Part Name',
 					'location'    => 'Part Location',
 					'description' => 'Part Description',
+					'post_types'  => 'Part Post Types',
+					'include'     => 'Part Include',
+					'exclude'     => 'Part Exclude',
 				)
 			);
 
@@ -81,12 +79,53 @@ function imajiner_get_parts() {
 				'location'    => isset( $locations[ $headers['location'] ] ) ? $headers['location'] : '',
 				'description' => $headers['description'],
 				'file'        => $file,
+				'post_types'  => imajiner_part_condition_values( $headers['post_types'] ),
+				'include'     => imajiner_part_condition_values( $headers['include'] ),
+				'exclude'     => imajiner_part_condition_values( $headers['exclude'] ),
 			);
 		}
 	}
 
 	ksort( $parts );
 	return $parts;
+}
+
+/** Portable, comma-separated condition headers; no PHP expressions. */
+function imajiner_part_condition_values( $value ) {
+	return array_values( array_unique( array_filter( array_map( 'trim', explode( ',', $value ) ) ) ) );
+}
+
+/** Exclusions win; empty includes and post types mean unrestricted. */
+function imajiner_part_is_visible( array $part ) {
+	$contexts = imajiner_request_locations();
+	if ( array_intersect( $part['exclude'], $contexts ) ) {
+		return false;
+	}
+	if ( $part['include'] && ! array_intersect( $part['include'], $contexts ) ) {
+		return false;
+	}
+	if ( $part['post_types'] ) {
+		$types = is_singular() ? array( get_post_type( get_queried_object_id() ) ) : (array) get_query_var( 'post_type' );
+		if ( is_home() ) {
+			$types = array( 'post' );
+		} elseif ( is_category() || is_tag() || is_tax() ) {
+			$taxonomy = get_taxonomy( get_queried_object()->taxonomy );
+			$types = $taxonomy ? $taxonomy->object_type : array();
+		}
+		if ( ! array_intersect( $part['post_types'], $types ) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/** A validated editor preview may show its target regardless of conditions. */
+function imajiner_part_is_preview( $slug ) {
+	if ( ! class_exists( 'Imajiner_Preview' ) ) {
+		return false;
+	}
+	$preview = Imajiner_Preview::current();
+	return $preview && 'part' === $preview['type'] && $slug === $preview['slug'];
 }
 
 /**
@@ -98,7 +137,7 @@ function imajiner_get_parts() {
  */
 function imajiner_part( $slug, $args = array() ) {
 	$parts = imajiner_get_parts();
-	if ( ! isset( $parts[ $slug ] ) ) {
+	if ( ! isset( $parts[ $slug ] ) || ( ! imajiner_part_is_preview( $slug ) && ! imajiner_part_is_visible( $parts[ $slug ] ) ) ) {
 		return false;
 	}
 
@@ -109,6 +148,10 @@ function imajiner_part( $slug, $args = array() ) {
 	 * @param string $slug Part slug.
 	 */
 	$file = apply_filters( 'imajiner_part_file', $parts[ $slug ]['file'], $slug );
+	if ( ! is_file( $file ) ) {
+		return false;
+	}
+	imajiner_enqueue_part_styles( $slug, $parts[ $slug ] );
 
 	echo '<div class="imj-part imj-part-' . esc_attr( $slug ) . '">';
 	load_template( $file, false, $args );
@@ -179,15 +222,21 @@ function imajiner_file_uri( $file ) {
 }
 
 /**
- * Loads every part's stylesheet. Parts are small and can appear on any page, so
- * loading them all keeps them styled wherever a template includes one.
+ * Enqueues only a rendered part, using its original stylesheet during preview.
+ * WordPress prints late styles explicitly if wp_head has already run, including
+ * calls after wp_footer; the handle prevents duplicate output.
  */
-function imajiner_enqueue_part_styles() {
-	foreach ( imajiner_get_parts() as $part ) {
-		$css = imajiner_css_file( $part['file'] );
-		if ( file_exists( $css ) ) {
-			wp_enqueue_style( 'imajiner-part-' . $part['slug'], imajiner_file_uri( $css ), array( 'imajiner-base' ), (string) filemtime( $css ) );
-		}
+function imajiner_enqueue_part_styles( $slug, array $part ) {
+	if ( imajiner_part_is_preview( $slug ) && ( wp_style_is( 'imajiner-stage', 'enqueued' ) || wp_style_is( 'imajiner-stage', 'done' ) ) ) {
+		return;
+	}
+	$css = imajiner_css_file( $part['file'] );
+	if ( ! is_file( $css ) ) {
+		return;
+	}
+	$handle = 'imajiner-part-' . $slug;
+	wp_enqueue_style( $handle, imajiner_file_uri( $css ), array( 'imajiner-base' ), (string) filemtime( $css ) );
+	if ( did_action( 'wp_head' ) ) {
+		wp_print_styles( array( $handle ) );
 	}
 }
-add_action( 'wp_enqueue_scripts', 'imajiner_enqueue_part_styles', 20 );
