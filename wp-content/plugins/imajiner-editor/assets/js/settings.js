@@ -4,6 +4,7 @@
  */
 ( function ( wp, config ) {
 	'use strict';
+	const { __, sprintf } = wp.i18n;
 
 	document.querySelectorAll( '.imajiner-slot' ).forEach( ( row ) => {
 		const slot = row.dataset.slot;
@@ -19,7 +20,7 @@
 
 		// Suggest the provider's default model, and drop models loaded for another provider.
 		select.addEventListener( 'change', () => {
-			modelInput.placeholder = config.defaultModels[ select.value ] || 'Model id';
+			modelInput.placeholder = config.defaultModels[ select.value ] || __( 'Model id', 'imajiner-editor' );
 			list.replaceChildren();
 			show( '', true );
 		} );
@@ -27,7 +28,7 @@
 		row.querySelector( '.imajiner-load-models' ).addEventListener( 'click', async ( event ) => {
 			const button = event.currentTarget;
 			if ( ! select.value ) {
-				show( 'Choose a provider first.', false );
+				show( __( 'Choose a provider first.', 'imajiner-editor' ), false );
 				return;
 			}
 			button.disabled = true;
@@ -40,9 +41,9 @@
 						return option;
 					} )
 				);
-				show( models.length + ' models loaded. Start typing in the model field to pick one.', true );
+				show( sprintf( __( '%d models loaded. Start typing in the model field to pick one.', 'imajiner-editor' ), models.length ), true );
 			} catch ( error ) {
-				show( error.message || 'Could not load models.', false );
+				show( error.message || __( 'Could not load models.', 'imajiner-editor' ), false );
 			}
 			button.disabled = false;
 		} );
@@ -50,12 +51,12 @@
 		row.querySelector( '.imajiner-test' ).addEventListener( 'click', async ( event ) => {
 			const button = event.currentTarget;
 			button.disabled = true;
-			show( 'Testing…', true );
+			show( __( 'Testing…', 'imajiner-editor' ), true );
 			try {
 				const response = await wp.apiFetch( { path: '/imajiner/v1/ai/test', method: 'POST', data: { slot } } );
-				show( 'Connected to ' + response.model + '. It replied: ' + ( response.reply || '(empty reply)' ), true );
+				show( sprintf( __( 'Connected to %1$s. It replied: %2$s', 'imajiner-editor' ), response.model, response.reply || __( '(empty reply)', 'imajiner-editor' ) ), true );
 			} catch ( error ) {
-				show( error.message || 'Connection failed.', false );
+				show( error.message || __( 'Connection failed.', 'imajiner-editor' ), false );
 			}
 			button.disabled = false;
 		} );
