@@ -1,0 +1,12 @@
+.imj-design { max-width: 1200px; }
+.imj-design label { display: block; font-weight: 600; margin: 14px 0 6px; }
+.imj-design section { margin: 24px 0; }
+.imj-design [hidden] { display: none !important; }
+.imj-design .notice { padding: 12px; white-space: pre-wrap; }
+.imj-design-columns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+.imj-design pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #fff; padding: 16px; max-height: 320px; overflow: auto; border: 1px solid #c3c4c7; }
+.imj-design .widefat td { max-width: 400px; overflow-wrap: anywhere; }
+.imj-token-sample { display: block; border: 1px solid #777; border-left-style: solid; padding: 8px; margin-top: 8px; min-height: 20px; max-height: 80px; max-width: 260px; overflow: hidden; font-size: 16px; color: #222; background: #fff; }
+.imj-token-changed td:first-child { border-left: 4px solid #2271b1; }
+#imj-design-revisions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+@media (max-width: 782px) { .imj-design-columns { grid-template-columns: minmax(0,1fr); } }
