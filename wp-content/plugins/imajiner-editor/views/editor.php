@@ -37,6 +37,9 @@ defined( 'ABSPATH' ) || exit;
 	</div>
 	<div id="imj-devices" class="imj-devices" role="group" aria-label="<?php esc_attr_e( 'Preview device', 'imajiner-editor' ); ?>"></div>
 	<div class="imj-topbar__actions">
+		<button type="button" id="imj-breakpoints" class="imj-button"><?php esc_html_e( 'Breakpoints', 'imajiner-editor' ); ?></button>
+		<button type="button" id="imj-undo" class="imj-button" disabled><?php esc_html_e( 'Undo', 'imajiner-editor' ); ?></button>
+		<button type="button" id="imj-redo" class="imj-button" disabled><?php esc_html_e( 'Redo', 'imajiner-editor' ); ?></button>
 		<span id="imj-status" class="imj-status" role="status" aria-live="polite"></span>
 		<div class="imj-history">
 			<button type="button" id="imj-history-toggle" class="imj-button imj-button--ghost" aria-expanded="false" aria-controls="imj-history-panel"><?php esc_html_e( 'History', 'imajiner-editor' ); ?></button>
@@ -52,6 +55,15 @@ defined( 'ABSPATH' ) || exit;
 	<aside class="imj-panel">
 		<h2 class="imj-panel__title"><?php esc_html_e( 'Layers', 'imajiner-editor' ); ?></h2>
 		<button type="button" id="imj-add-section" class="imj-button imj-add-section"><?php esc_html_e( 'Add blank section', 'imajiner-editor' ); ?></button>
+		<label class="imj-field">
+			<span><?php esc_html_e( 'Section library', 'imajiner-editor' ); ?></span>
+			<select id="imj-library" class="imj-input">
+				<option value=""><?php esc_html_e( 'Choose a section…', 'imajiner-editor' ); ?></option>
+				<?php foreach ( Imajiner_Section_Library::entries() as $name => $label ) : ?>
+					<option value="<?php echo esc_attr( $name ); ?>"><?php echo esc_html( $label ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</label>
 		<div id="imj-warnings"></div>
 		<div id="imj-tree" class="imj-tree"></div>
 	</aside>

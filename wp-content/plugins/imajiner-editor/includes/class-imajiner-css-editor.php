@@ -165,7 +165,7 @@ class Imajiner_Css_Editor {
 			$names[ self::media_key( $condition ) ] = $name;
 		}
 
-		$pattern = '/^' . preg_quote( $scope, '/' ) . ' \.(' . self::CLASS_PATTERN . ')$/';
+		$pattern = '/^' . preg_quote( $scope, '/' ) . ' \.(' . self::CLASS_PATTERN . '(?::hover|:focus-visible)?)$/';
 		$styles  = array();
 
 		foreach ( $this->rules as $rule ) {
@@ -177,6 +177,38 @@ class Imajiner_Css_Editor {
 		}
 
 		return $styles;
+	}
+
+	/** Existing scoped rules, including compound selectors and arbitrary media conditions. */
+	public function get_style_rules( $scope ) {
+		$result = array();
+		foreach ( $this->rules as $rule ) {
+			if ( is_wp_error( self::validate_scope( $rule['selector'] . ' {}', $scope ) ) ) {
+				continue;
+			}
+			$key = $rule['media'] . '|' . $rule['selector'];
+			if ( ! isset( $result[ $key ] ) ) {
+				$media = '';
+				foreach ( $this->media_blocks as $block ) {
+					if ( $block['condition'] === $rule['media'] ) { $media = $block['query']; break; }
+				}
+				$result[ $key ] = array( 'selector' => $rule['selector'], 'media' => $media, 'values' => array() );
+			}
+			foreach ( $rule['declarations'] as $declaration ) {
+				$result[ $key ]['values'][ $declaration['property'] ] = $declaration['value'];
+			}
+		}
+		return array_values( $result );
+	}
+
+	/** Explicit contexts may only address existing whole rules, never split selectors. */
+	public function has_rule( $selector, $media ) {
+		foreach ( $this->rules as $rule ) {
+			if ( $rule['selector'] === $selector && $rule['media'] === self::media_key( $media ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -326,6 +358,7 @@ class Imajiner_Css_Editor {
 					$key                  = self::media_key( $match[1] );
 					$this->media_blocks[] = array(
 						'condition' => $key,
+						'query'     => $match[1],
 						'start'     => $rule_start,
 						'open'      => $i,
 						'close'     => $close,

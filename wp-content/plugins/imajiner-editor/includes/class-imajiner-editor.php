@@ -377,6 +377,7 @@ class Imajiner_Editor {
 		return array(
 			'hash'      => Imajiner_Template_Store::hash( $files ),
 			'structure' => $scanner->get_structure(),
+			'styleRules' => $css->get_style_rules( self::css_scope( $template ) ),
 			// An empty array would encode as [] instead of {}.
 			'styles'    => (object) array_map(
 				function ( $classes ) {
@@ -421,7 +422,27 @@ class Imajiner_Editor {
 		 *
 		 * @param array $breakpoints Name => label, media and width. Keep them ordered widest first.
 		 */
+		$saved = get_option( 'imajiner_editor_breakpoints' );
+		if ( is_array( $saved ) && ! is_wp_error( self::validate_breakpoints( $saved ) ) ) {
+			$breakpoints = $saved;
+		}
 		return apply_filters( 'imajiner_editor_breakpoints', $breakpoints );
+	}
+
+	public static function validate_breakpoints( $breakpoints ) {
+		$invalid = new WP_Error( 'imajiner_breakpoints', __( 'Use an ordered list of 1–8 named breakpoints with a base first, safe media conditions, labels and widths of 240–3840 pixels.', 'imajiner-editor' ), array( 'status' => 400 ) );
+		if ( ! is_array( $breakpoints ) || ! $breakpoints || count( $breakpoints ) > 8 ) {
+			return $invalid;
+		}
+		$first = true;
+		foreach ( $breakpoints as $name => $point ) {
+			if ( ! is_string( $name ) || ! preg_match( '/^[a-z][a-z0-9_-]{0,30}$/', $name ) || ! is_array( $point ) || ! isset( $point['label'], $point['media'], $point['width'] ) || ! is_string( $point['label'] ) || '' === trim( $point['label'] ) || strlen( $point['label'] ) > 60 || wp_strip_all_tags( $point['label'] ) !== $point['label'] || ! is_string( $point['media'] ) || strlen( $point['media'] ) > 200 || preg_match( '/[^a-zA-Z0-9\s():.,%_\/-]/', $point['media'] ) || ( $first && '' !== $point['media'] ) || ( ! $first && '' === trim( $point['media'] ) ) || ! is_numeric( $point['width'] ) || $point['width'] < 240 || $point['width'] > 3840 ) {
+				return $invalid;
+			}
+			$breakpoints[ $name ] = array( 'label' => $point['label'], 'media' => $point['media'], 'width' => (int) $point['width'] );
+			$first = false;
+		}
+		return $breakpoints;
 	}
 
 	/**

@@ -13,6 +13,64 @@
 	let hovered = null;
 	let dragNodes = new Map();
 	let draggedId = null;
+	let inlineEditor = null;
+	let inlineAllowed = false;
+
+	function textRanges( id ) {
+		const result = [];
+		const walker = document.createTreeWalker( document.body, window.NodeFilter.SHOW_COMMENT );
+		let comment;
+		while ( ( comment = walker.nextNode() ) ) {
+			if ( comment.data === 'imj-text:' + id ) {
+				const end = comment.nextSibling;
+				if ( end && end.nodeType === 3 && end.nextSibling && end.nextSibling.nodeType === 8 && end.nextSibling.data === '/imj-text:' + id ) {
+					result.push( end );
+				}
+			}
+		}
+		return result;
+	}
+
+	function applyText( id, text ) {
+		textRanges( id ).forEach( ( node ) => {
+			const leading = ( node.textContent.match( /^\s*/ ) || [ '' ] )[ 0 ];
+			const trailing = ( node.textContent.match( /\s*$/ ) || [ '' ] )[ 0 ];
+			node.textContent = leading + text + trailing;
+		} );
+	}
+
+	document.addEventListener( 'dblclick', ( event ) => {
+		if ( ! inlineAllowed || inlineEditor ) { return; }
+		let range;
+		if ( document.caretRangeFromPoint ) { range = document.caretRangeFromPoint( event.clientX, event.clientY ); }
+		const position = ! range && document.caretPositionFromPoint ? document.caretPositionFromPoint( event.clientX, event.clientY ) : null;
+		const text = range ? range.startContainer : position && position.offsetNode;
+		if ( ! text || text.nodeType !== 3 || ! text.previousSibling || text.previousSibling.nodeType !== 8 || ! /^imj-text:t\d+$/.test( text.previousSibling.data ) ) { return; }
+		const id = text.previousSibling.data.slice( 'imj-text:'.length );
+		const original = text.textContent;
+		const span = document.createElement( 'span' );
+		span.className = 'imj-inline-editor'; span.contentEditable = 'true'; span.setAttribute( 'role', 'textbox' );
+		span.setAttribute( 'aria-label', window.wp.i18n.__( 'Edit text', 'imajiner-editor' ) );
+		span.textContent = original.trim(); text.replaceWith( span ); inlineEditor = span;
+		let cancelled = false;
+		span.addEventListener( 'keydown', ( keyEvent ) => {
+			if ( keyEvent.key === 'Escape' ) { cancelled = true; span.blur(); }
+			if ( keyEvent.key === 'Enter' ) { keyEvent.preventDefault(); span.blur(); }
+		} );
+		span.addEventListener( 'paste', ( pasteEvent ) => {
+			pasteEvent.preventDefault();
+			const selection = window.getSelection();
+			if ( ! selection.rangeCount ) { return; }
+			const selected = selection.getRangeAt( 0 ); selected.deleteContents();
+			const plain = document.createTextNode( pasteEvent.clipboardData.getData( 'text/plain' ) ); selected.insertNode( plain ); selected.setStartAfter( plain ); selected.collapse( true );
+		} );
+		span.addEventListener( 'blur', () => {
+			const value = span.textContent.trim();
+			const replacement = document.createTextNode( original ); span.replaceWith( replacement ); inlineEditor = null;
+			if ( ! cancelled && value ) { applyText( id, value ); send( { type: 'imj:inline', id, text: value } ); }
+		}, { once: true } );
+		span.focus();
+	} );
 
 	document.addEventListener( 'dragstart', ( event ) => {
 		const element = event.target.closest( '[data-imj-id]' );
@@ -70,6 +128,7 @@
 	document.addEventListener(
 		'click',
 		( event ) => {
+			if ( inlineEditor && inlineEditor.contains( event.target ) ) { return; }
 			event.preventDefault();
 			event.stopPropagation();
 			const target = event.target.closest( '[data-imj-id]' );
@@ -83,7 +142,7 @@
 	document.addEventListener( 'submit', ( event ) => event.preventDefault(), true );
 
 	function elements( id ) {
-		return document.querySelectorAll( '[data-imj-id="' + CSS.escape( id ) + '"]' );
+		return document.querySelectorAll( '[data-imj-id="' + window.CSS.escape( id ) + '"]' );
 	}
 
 	function highlight( ids, scroll ) {
@@ -170,11 +229,17 @@
 	}
 
 	window.addEventListener( 'message', ( event ) => {
-		if ( event.origin !== editorOrigin || ! event.data ) {
+		if ( event.origin !== editorOrigin || event.source !== window.parent || ! event.data ) {
 			return;
 		}
 
 		switch ( event.data.type ) {
+			case 'imj:inline-config':
+				inlineAllowed = !! event.data.enabled;
+				break;
+			case 'imj:text':
+				if ( /^t\d+$/.test( event.data.id ) && typeof event.data.text === 'string' ) { applyText( event.data.id, event.data.text ); }
+				break;
 			case 'imj:drag-config':
 				dragNodes = new Map( event.data.nodes.map( ( node ) => [ node.element, node ] ) );
 				event.data.nodes.forEach( ( node ) => elements( node.element ).forEach( ( element ) => { element.draggable = node.draggable; } ) );
