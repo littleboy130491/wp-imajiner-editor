@@ -31,6 +31,7 @@ defined( 'ABSPATH' ) || exit;
 		</p>
 		<button class="button button-primary" id="imj-ai-generate" type="submit"><?php esc_html_e( 'Generate proposal', 'imajiner-editor' ); ?></button>
 	</form>
+	<button class="button" id="imj-ai-stop" type="button" hidden><?php esc_html_e( 'Cancel background job', 'imajiner-editor' ); ?></button>
 	<p id="imj-ai-status" role="status" aria-live="polite"></p>
 	<ul id="imj-ai-errors"></ul>
 	<div id="imj-ai-review" hidden>

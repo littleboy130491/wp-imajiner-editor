@@ -154,7 +154,8 @@ class Imajiner_Settings {
 
 		return rest_ensure_response(
 			array(
-				'model' => $slot['model'],
+				'model' => Imajiner_AI::last_result()['model'] ?: $slot['model'],
+				'usage' => Imajiner_AI::last_result()['usage'],
 				'reply' => mb_substr( trim( $reply ), 0, 100 ),
 			)
 		);

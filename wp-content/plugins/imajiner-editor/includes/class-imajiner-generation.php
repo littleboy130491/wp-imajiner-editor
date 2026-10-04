@@ -9,6 +9,30 @@ defined( 'ABSPATH' ) || exit;
 
 class Imajiner_Generation {
 
+	public static function init() {
+		add_filter( 'imajiner_ai_job_handler_generate', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_action( 'imajiner_ai_job_discarded', array( __CLASS__, 'discard_job' ), 10, 3 );
+	}
+
+	public static function discard_job( $type, $result, $owner ) {
+		if ( 'generate' === $type && is_array( $result ) && isset( $result['proposal'] ) ) {
+			delete_transient( 'imajiner_ai_' . $owner . '_' . $result['proposal'] );
+		}
+	}
+
+	public static function enqueue( WP_REST_Request $request ) {
+		return self::generate( $request, true );
+	}
+
+	public static function handle_job( $unused, $payload, $id ) {
+		$payload['_job_id'] = $id;
+		$request = new WP_REST_Request( 'POST' );
+		$request->set_body_params( $payload );
+		Imajiner_AI_Jobs::progress( $id, 20 );
+		$result = self::generate( $request );
+		return is_wp_error( $result ) ? $result : $result->get_data();
+	}
+
 	public static function register_routes() {
 		foreach ( array( 'generate', 'accept' ) as $action ) {
 			register_rest_route(
@@ -16,7 +40,7 @@ class Imajiner_Generation {
 				'/ai/' . $action,
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
-					'callback'            => array( __CLASS__, $action ),
+					'callback'            => array( __CLASS__, 'generate' === $action ? 'enqueue' : $action ),
 					'permission_callback' => array( __CLASS__, 'can_generate' ),
 					'args'                => 'generate' === $action ? array(
 						'prompt' => array( 'type' => 'string', 'default' => '', 'maxLength' => 20000 ),
@@ -34,7 +58,10 @@ class Imajiner_Generation {
 		return Imajiner_Editor::theme_ready() && is_child_theme() && Imajiner_Editor::user_can_edit_templates();
 	}
 
-	public static function generate( WP_REST_Request $request ) {
+	public static function generate( WP_REST_Request $request, $queue = false ) {
+		if ( ! self::can_generate() ) {
+			return new WP_Error( 'imajiner_forbidden', __( 'You cannot edit templates.', 'imajiner-editor' ), array( 'status' => 403 ) );
+		}
 		$key      = $request['key'];
 		$template = $key ? Imajiner_Editor::get_template( $key ) : null;
 		if ( $key && ! $template ) {
@@ -60,9 +87,17 @@ class Imajiner_Generation {
 		if ( is_wp_error( $before ) ) {
 			return $before;
 		}
+		$hash = Imajiner_Template_Store::hash( $before );
+		if ( $request['hash'] && ! hash_equals( $hash, $request['hash'] ) ) {
+			return new WP_Error( 'imajiner_conflict', __( 'The template changed. Generate a fresh proposal.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
 		$prompt = trim( $request['prompt'] );
 		if ( ! $template && '' === $prompt ) {
 			return new WP_Error( 'imajiner_prompt_required', __( 'Describe the page to create.', 'imajiner-editor' ), array( 'status' => 400 ) );
+		}
+		if ( $queue ) {
+			$job = Imajiner_AI_Jobs::enqueue( 'generate', array( 'key' => $key, 'name' => $name, 'prompt' => $prompt, 'hash' => $hash ) );
+			return is_wp_error( $job ) ? $job : new WP_REST_Response( $job, 202 );
 		}
 		$type    = $template ? $template['type'] : 'page';
 		$scope   = 'part' === $type ? '.imj-part-' . $slug : '.imj-' . $slug;
@@ -82,7 +117,7 @@ class Imajiner_Generation {
 		);
 
 		for ( $attempt = 0; $attempt < 2; ++$attempt ) {
-			$reply = Imajiner_AI::chat( $messages, array( 'max_tokens' => 16000 ) );
+			$reply = Imajiner_AI::chat( $messages, array( 'max_tokens' => 16000, 'timeout' => 90 ) );
 			if ( is_wp_error( $reply ) ) {
 				return $reply;
 			}
@@ -90,8 +125,10 @@ class Imajiner_Generation {
 			if ( ! is_wp_error( $files ) ) {
 				break;
 			}
-			$messages[] = array( 'role' => 'assistant', 'content' => $reply );
-			$messages[] = array( 'role' => 'user', 'content' => "Fix these validation errors and return the complete JSON object again:\n" . implode( "\n", $files->get_error_data()['warnings'] ) );
+			if ( 0 === $attempt ) {
+				$messages[] = array( 'role' => 'assistant', 'content' => $reply );
+				$messages[] = array( 'role' => 'user', 'content' => "Fix these validation errors and return the complete JSON object again:\n" . implode( "\n", $files->get_error_data()['warnings'] ) );
+			}
 		}
 		if ( is_wp_error( $files ) ) {
 			return $files;
@@ -100,7 +137,7 @@ class Imajiner_Generation {
 		$id = wp_generate_uuid4();
 		$stored = set_transient(
 			self::proposal_key( $id ),
-			array( 'key' => $key ?: $slug, 'name' => $name, 'stylesheet' => get_stylesheet(), 'normalize' => (bool) $template, 'hash' => Imajiner_Template_Store::hash( $before ), 'files' => $files, 'context' => $context ),
+			array( 'key' => $key ?: $slug, 'name' => $name, 'stylesheet' => get_stylesheet(), 'normalize' => (bool) $template, 'hash' => $hash, 'files' => $files, 'context' => $context, 'job' => absint( $request['_job_id'] ) ),
 			HOUR_IN_SECONDS
 		);
 		if ( ! $stored ) {
@@ -122,10 +159,28 @@ class Imajiner_Generation {
 	}
 
 	public static function accept( WP_REST_Request $request ) {
+		if ( ! self::can_generate() ) {
+			return new WP_Error( 'imajiner_forbidden', __( 'You cannot edit templates.', 'imajiner-editor' ), array( 'status' => 403 ) );
+		}
+		$lock = self::proposal_key( $request['proposal'] ) . '_accept';
+		if ( ! add_option( $lock, time() + HOUR_IN_SECONDS, '', false ) ) {
+			return new WP_Error( 'imajiner_accept_busy', __( 'This proposal is already being accepted.', 'imajiner-editor' ), array( 'status' => 409 ) );
+		}
+		try {
+			return self::accept_locked( $request );
+		} finally {
+			delete_option( $lock );
+		}
+	}
+
+	private static function accept_locked( WP_REST_Request $request ) {
 		$transient = self::proposal_key( $request['proposal'] );
 		$proposal  = get_transient( $transient );
 		if ( ! is_array( $proposal ) ) {
 			return new WP_Error( 'imajiner_expired', __( 'This proposal expired. Generate it again.', 'imajiner-editor' ), array( 'status' => 410 ) );
+		}
+		if ( ! empty( $proposal['job'] ) && ! Imajiner_AI_Jobs::can_accept( $proposal['job'] ) ) {
+			return new WP_Error( 'imajiner_expired', __( 'This AI job is no longer available. Generate the proposal again.', 'imajiner-editor' ), array( 'status' => 410 ) );
 		}
 		if ( $proposal['stylesheet'] !== get_stylesheet() ) {
 			return new WP_Error( 'imajiner_theme_changed', __( 'The active theme changed. Generate the proposal again.', 'imajiner-editor' ), array( 'status' => 409 ) );
@@ -176,13 +231,13 @@ class Imajiner_Generation {
 		return 'imajiner_ai_' . get_current_user_id() . '_' . $id;
 	}
 
-	private static function in_child_theme( $path ) {
+	public static function in_child_theme( $path ) {
 		$root = realpath( get_stylesheet_directory() );
 		$file = realpath( $path );
 		return $root && $file && 0 === strpos( $file, $root . DIRECTORY_SEPARATOR );
 	}
 
-	private static function static_markup( $php ) {
+	public static function static_markup( $php ) {
 		$html = '';
 		foreach ( token_get_all( $php ) as $token ) {
 			if ( is_array( $token ) && T_INLINE_HTML === $token[0] ) {
