@@ -1437,11 +1437,14 @@
 		reload: async () => {
 			if ( busy ) { throw new Error( __( 'Wait for the current edit to finish.' ) ); }
 			if ( changes.size || operations.length ) { return refreshStage(); }
-			loadTemplate( await api( 'GET', '/state' ) );
+			busy = true; updateToolbar();
+			try { return loadTemplate( await api( 'GET', '/state' ) ); }
+			finally { busy = false; updateToolbar(); }
 		},
-		applyProposal: ( proposal ) => {
-			if ( busy || lockBlocked ) { return Promise.reject( new Error( __( 'Wait for the editor lock and current edit.' ) ) ); }
-			if ( ! selectedId || ! index.has( selectedId ) || ! index.get( selectedId ).node.mutable ) { return Promise.reject( new Error( __( 'Select a static element or section first.' ) ) ); }
+		applyProposal: async ( proposal ) => {
+			if ( busy || lockBlocked ) { throw new Error( __( 'Wait for the editor lock and current edit.' ) ); }
+			if ( ! selectedId || ! index.has( selectedId ) || ! index.get( selectedId ).node.mutable ) { throw new Error( __( 'Select a static element or section first.' ) ); }
+			if ( ! proposal || ( proposal.id !== undefined && proposal.id !== selectedId ) || ( proposal.hash !== undefined && proposal.hash !== hash ) || ( proposal.stage !== undefined && proposal.stage !== currentStage ) ) { throw new Error( __( 'The proposal selection changed. Generate a new proposal.' ) ); }
 			return stageOperation( { type: 'proposal', id: selectedId, php: proposal.php, css: proposal.css || '' } );
 		},
 	};
