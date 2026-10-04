@@ -34,6 +34,14 @@ Multisite creation/activation is intentionally delegated to network deployment.
 An interrupted request can leave an `imajiner_child_setup_<md5-of-full-path>` option;
 an administrator may remove that lock only after verifying no setup is running.
 
+When integrating the filesystem service, verify setup-specific path support: reads
+of the bundled parent scaffold allowlist, creation inside the requested new child
+folder, and deletion of newly created **empty** directories during rollback. A
+service restricted to the active child theme cannot perform this workflow. Keep
+any setup scope limited to that allowlist and validated destination for the current
+request; do not globally broaden editor write access, fall back to direct writes,
+or temporarily activate a theme to bypass path restrictions.
+
 ## Independent client repository (not a nested repository here)
 
 Use a **separate checkout outside this demo/project repository**. Export only the
@@ -107,6 +115,8 @@ The default header provides progressive navigation with a mobile disclosure butt
 submenu disclosures, visible keyboard focus, ArrowDown to enter a submenu and Escape
 to close it (returning focus to its button). Escape from the mobile menu returns focus
 to the main toggle. Tab follows ordinary document order; there is no focus trap.
+Viewport changes move focus out of controls that become hidden, and closing a
+parent submenu resets its nested disclosures.
 Without JavaScript every navigation link/submenu remains visible, and the inert
 mobile button stays hidden. Replacing the header through a located template part
 still bypasses the default header entirely. Custom headers are not rewritten;

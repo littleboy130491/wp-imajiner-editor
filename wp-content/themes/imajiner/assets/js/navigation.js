@@ -33,6 +33,7 @@
 			function set(open) {
 				button.setAttribute('aria-expanded', String(open));
 				submenu.hidden = !open;
+				if (!open) disclosures.forEach(function (item) { if (submenu.contains(item.button)) item.set(false); });
 			}
 			set(false);
 			disclosures.push({ set: set, button: button, submenu: submenu });
@@ -72,7 +73,22 @@
 				if (!nav.contains(document.activeElement) && document.activeElement !== toggle) setMenu(false);
 			}, 0);
 		});
-		function resize() { toggle.hidden = !mobile.matches; setMenu(false); }
+		function resize() {
+			var active = document.activeElement;
+			var focus = null;
+			if (mobile.matches && nav.contains(active)) focus = toggle;
+			else if (!mobile.matches && active === toggle) focus = nav.querySelector('a, button') || nav;
+			else if (!mobile.matches) {
+				var parent = disclosures.find(function (item) { return item.submenu.contains(active); });
+				if (parent) focus = parent.button;
+			}
+			toggle.hidden = !mobile.matches;
+			setMenu(false);
+			if (focus) {
+				if (focus === nav) nav.setAttribute('tabindex', '-1');
+				focus.focus();
+			}
+		}
 		if (mobile.addEventListener) mobile.addEventListener('change', resize);
 		else mobile.addListener(resize);
 		nav.classList.add('site-nav--enhanced');

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const source = fs.readFileSync(path.resolve(__dirname, '../../../themes/imajiner/assets/js/navigation.js'), 'utf8');
 
-function fixture(isMobile, includeNav = true) {
+function fixture(isMobile, includeNav = true, nested = false) {
 	const timers = [];
 	const doc = { activeElement: null, listeners: {}, querySelectorAll: () => includeNav ? [nav] : [], querySelector: () => toggle };
 	class Element {
@@ -48,6 +48,14 @@ function fixture(isMobile, includeNav = true) {
 	link.textContent = 'Parent page';
 	const submenu = li.append(new Element('ul', ['sub-menu']));
 	const childLink = submenu.append(new Element('a'));
+	let nestedLi, nestedLink, nestedSubmenu, grandchildLink;
+	if (nested) {
+		nestedLi = submenu.append(new Element('li', ['menu-item-has-children']));
+		nestedLink = nestedLi.append(new Element('a'));
+		nestedLink.textContent = 'Nested page';
+		nestedSubmenu = nestedLi.append(new Element('ul', ['sub-menu']));
+		grandchildLink = nestedSubmenu.append(new Element('a'));
+	}
 	const outside = new Element('a');
 	doc.createElement = tag => new Element(tag);
 	doc.addEventListener = (event, callback) => { (doc.listeners[event] ||= []).push(callback); };
@@ -59,7 +67,7 @@ function fixture(isMobile, includeNav = true) {
 		(target.listeners[type] || []).forEach(callback => callback(event));
 		return event;
 	}
-	return { doc, toggle, nav, li, link, submenu, childLink, outside, media, trigger,
+	return { doc, toggle, nav, li, link, submenu, childLink, nestedLi, nestedLink, nestedSubmenu, grandchildLink, outside, media, trigger,
 		load: () => vm.runInNewContext(source, context),
 		flush: () => { while (timers.length) timers.shift()(); },
 		translations: () => translations };
@@ -108,6 +116,40 @@ test('Responsive changes reset disclosures without hiding desktop navigation', (
 	f.trigger(f.li, 'mouseleave'); assert.equal(f.submenu.hidden, true);
 	f.media.matches = true; f.media.change();
 	assert.equal(f.nav.hidden, true); assert.equal(f.toggle.hidden, false);
+});
+test('Responsive collapse moves focus from hidden navigation to the mobile toggle', () => {
+	const f = fixture(false); f.load();
+	f.link.focus();
+	f.media.matches = true; f.media.change();
+	assert.equal(f.nav.hidden, true); assert.equal(f.doc.activeElement, f.toggle);
+	f.trigger(f.toggle, 'click'); f.trigger(f.li.children[1], 'click'); f.childLink.focus();
+	f.media.change();
+	assert.equal(f.nav.hidden, true); assert.equal(f.doc.activeElement, f.toggle);
+	f.outside.focus(); f.media.change();
+	assert.equal(f.doc.activeElement, f.outside);
+});
+test('Desktop transition moves focus off the hidden toggle, including an empty menu', () => {
+	const f = fixture(true); f.load(); f.toggle.focus();
+	f.media.matches = false; f.media.change();
+	assert.equal(f.toggle.hidden, true); assert.equal(f.doc.activeElement, f.link);
+	const empty = fixture(true); empty.nav.children = []; empty.load(); empty.toggle.focus();
+	empty.media.matches = false; empty.media.change();
+	assert.equal(empty.doc.activeElement, empty.nav); assert.equal(empty.nav.getAttribute('tabindex'), '-1');
+	assert.equal(empty.nav.hidden, false);
+});
+test('Closing a parent submenu resets nested disclosures and keeps resize focus visible', () => {
+	const f = fixture(false, true, true); f.load();
+	const parentButton = f.li.children[1], nestedButton = f.nestedLi.children[1];
+	f.trigger(parentButton, 'click'); f.trigger(nestedButton, 'click');
+	assert.equal(f.nestedSubmenu.hidden, false);
+	f.trigger(parentButton, 'click');
+	assert.equal(f.submenu.hidden, true); assert.equal(f.nestedSubmenu.hidden, true);
+	assert.equal(nestedButton.getAttribute('aria-expanded'), 'false');
+	f.trigger(parentButton, 'click'); f.trigger(nestedButton, 'click'); f.grandchildLink.focus();
+	f.media.change();
+	assert.equal(f.doc.activeElement, parentButton);
+	assert.equal(f.submenu.hidden, true); assert.equal(f.nestedSubmenu.hidden, true);
+	assert.equal(f.nav.hidden, false);
 });
 test('Outside click and tab-away close mobile menu without stealing focus', () => {
 	const f = fixture(true); f.load(); f.trigger(f.toggle, 'click');
