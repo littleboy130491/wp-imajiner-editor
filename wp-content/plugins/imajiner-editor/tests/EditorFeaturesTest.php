@@ -82,6 +82,93 @@ final class EditorFeaturesTest extends TestCase {
 		self::assertSame( '<?php the_title(); ?>', $scanner->get_node_source( 'p1' ) );
 	}
 
+	public function test_preview_markers_do_not_replace_literal_source_tokens(): void {
+		$source = '<p title="IMAJINER_TEXT_MARKER_0">A &amp; B</p><!-- IMAJINER_TEXT_MARKER_0 --><?php echo esc_html( "IMAJINER_TEXT_MARKER_0" ); ?>';
+		$scanner = new Imajiner_Template_Scanner( $source, array( 'require_sections' => false ) );
+		$preview = $scanner->get_instrumented_source();
+		self::assertStringContainsString( 'title="IMAJINER_TEXT_MARKER_0"', $preview );
+		self::assertStringContainsString( '<!-- IMAJINER_TEXT_MARKER_0 -->', $preview );
+		self::assertStringContainsString( '<!--imj-text:t0-->A &amp; B<!--/imj-text:t0-->', $preview );
+		self::assertSame( $scanner->get_php_sources(), ( new Imajiner_Template_Scanner( $preview ) )->get_php_sources() );
+	}
+
+	public function test_text_edit_markers_do_not_replace_literal_attribute_values(): void {
+		$token = "\u{E000}imj-text:0\u{E000}";
+		$source = '<p title="' . $token . '">Before</p><a href="#">Other</a>';
+		$scanner = new Imajiner_Template_Scanner( $source, array( 'require_sections' => false ) );
+		self::assertSame( str_replace( '>Before<', '>After<', $source ), $scanner->apply_changes( array( array( 'type' => 'text', 'id' => 't0', 'value' => 'After' ) ) ) );
+	}
+
+	public function test_text_edit_markers_do_not_replace_simultaneous_attribute_edits(): void {
+		$scanner = new Imajiner_Template_Scanner( '<p>Before</p>', array( 'require_sections' => false ) );
+		$changes = array(
+			array( 'type' => 'text', 'id' => 't0', 'value' => 'IMAJINER_TEXT_MARKER__0' ),
+			array( 'type' => 'attr', 'id' => 'e0', 'name' => 'title', 'value' => 'IMAJINER_TEXT_MARKER_0' ),
+		);
+		self::assertSame( '<p title="IMAJINER_TEXT_MARKER_0">IMAJINER_TEXT_MARKER__0</p>', $scanner->apply_changes( $changes ) );
+	}
+
+	public function test_many_preview_text_markers_keep_original_text_and_node_ids(): void {
+		$source = '';
+		for ( $i = 0; $i < 130; ++$i ) { $source .= '<p title="Item ' . $i . '">Item &amp; ' . $i . '</p>'; }
+		$scanner = new Imajiner_Template_Scanner( $source, array( 'require_sections' => false ) );
+		$preview = $scanner->get_instrumented_source();
+		for ( $i = 0; $i < 130; ++$i ) {
+			self::assertStringContainsString( 'data-imj-id="e' . $i . '"', $preview );
+			self::assertStringContainsString( '<!--imj-text:t' . $i . '-->Item &amp; ' . $i . '<!--/imj-text:t' . $i . '-->', $preview );
+		}
+	}
+
+	public function test_preview_cache_invalidates_when_scanner_instrumentation_changes(): void {
+		$_GET[ Imajiner_Preview::TEMPLATE_VAR ] = $this->key;
+		$_GET[ Imajiner_Preview::QUERY_VAR ] = wp_create_nonce( Imajiner_Preview::QUERY_VAR . '_' . $this->key );
+		$directory = new ReflectionMethod( Imajiner_Preview::class, 'cache_dir' );
+		$directory->setAccessible( true );
+		$dir = $directory->invoke( null );
+		$prefix = substr( md5( $this->path ), 0, 8 ) . '-' . basename( $this->path, '.php' );
+		$legacy = $dir . $prefix . '-' . md5( $this->files['php'] . IMAJINER_EDITOR_VERSION ) . '.php';
+		$preview = null;
+		try {
+			file_put_contents( $legacy, '<?php /* Stale instrumentation. */ ?>' );
+			$build = new ReflectionMethod( Imajiner_Preview::class, 'build' );
+			$build->setAccessible( true );
+			$preview = $build->invoke( null, $this->path );
+			self::assertIsString( $preview );
+			self::assertNotSame( $legacy, $preview );
+			self::assertStringContainsString( '<!--imj-text:t0-->Hello <!--/imj-text:t0-->', file_get_contents( $preview ) );
+			self::assertSame( $preview, $build->invoke( null, $this->path ) );
+		} finally {
+			foreach ( array( $legacy, $preview ) as $file ) { if ( is_string( $file ) && file_exists( $file ) ) { unlink( $file ); } }
+			unset( $_GET[ Imajiner_Preview::TEMPLATE_VAR ], $_GET[ Imajiner_Preview::QUERY_VAR ] );
+		}
+	}
+
+	public function test_removing_duplicate_css_declarations_keeps_unrelated_source(): void {
+		$selector = '.imj-' . $this->key . ' .hero:hover';
+		$source = $selector . ' { color: red; margin: 0; color: blue; }' . "\n" . '.outside { color: green; }';
+		$css = new Imajiner_Css_Editor( $source );
+		self::assertTrue( $css->set( $selector, 'color', null ) );
+		self::assertSame( $selector . ' {  margin: 0;  }' . "\n" . '.outside { color: green; }', $css->get_css() );
+		self::assertArrayNotHasKey( 'color', $css->get_style_rules( '.imj-' . $this->key )[0]['values'] );
+	}
+
+	public function test_duplicate_css_removal_replays_and_saves_in_compound_media_context(): void {
+		$scope = '.imj-' . $this->key;
+		$selector = $scope . ' .hero:hover, ' . $scope . ' a:focus-visible';
+		$before = $this->files;
+		$this->files['css'] .= "\n@media screen and (min-width: 800px) {\n" . $selector . ' { color: red; margin: 0; color: blue; }' . "\n}\n" . $scope . ' .other { color: green; }';
+		self::assertTrue( Imajiner_Template_Store::write( $this->path, Imajiner_Template_Store::hash( $before ), $this->files, 'Test duplicate CSS declarations' ) );
+		$changes = array( array( 'type' => 'style', 'class' => 'hero', 'selector' => $selector, 'media' => 'screen and (min-width: 800px)', 'property' => 'color', 'value' => null ) );
+		$expected = $this->files;
+		$expected['css'] = str_replace( 'color: red; margin: 0; color: blue;', ' margin: 0; ', $this->files['css'] );
+		self::assertSame( $expected, $this->staged( $this->request( 'stage', array( 'changes' => $changes ) ) ) );
+		self::assertSame( $this->files, Imajiner_Template_Store::read( $this->path ) );
+		self::assertSame( $this->files, $this->staged( $this->request( 'stage' ) ) );
+		self::assertSame( $expected, $this->staged( $this->request( 'stage', array( 'changes' => $changes ) ) ) );
+		self::assertSame( 200, $this->request( 'save', array( 'changes' => $changes ) )->get_status() );
+		self::assertSame( $expected, Imajiner_Template_Store::read( $this->path ) );
+	}
+
 	/** @dataProvider unsafe_markup */
 	public function test_proposals_reject_unsafe_literal_markup( $markup ): void {
 		$scanner = new Imajiner_Template_Scanner( $this->files['php'] );

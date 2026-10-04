@@ -243,18 +243,27 @@ class Imajiner_Template_Scanner {
 		$elements  = 0;
 		$texts = 0;
 		$markers = array();
+		$prefix = self::text_marker_prefix( $this->masked );
 
 		while ( $processor->next_token() ) {
 			if ( '#tag' === $processor->get_token_type() && ! $processor->is_tag_closer() ) {
 				$processor->set_attribute( 'data-imj-id', 'e' . $elements++ );
 			} elseif ( '#text' === $processor->get_token_type() && '' !== trim( $processor->get_modifiable_text() ) ) {
-				$key = 'IMAJINER_TEXT_MARKER_' . $texts;
+				$key = $prefix . $texts;
 				$markers[ $key ] = '<!--imj-text:t' . $texts . '-->' . substr( $this->masked, $processor->span()['start'], $processor->span()['end'] - $processor->span()['start'] ) . '<!--/imj-text:t' . $texts++ . '-->';
 				$processor->set_modifiable_text( $key );
 			}
 		}
 
 		return $this->unmask( strtr( $processor->get_updated_html(), $markers ) );
+	}
+
+	private static function text_marker_prefix( $source ) {
+		$prefix = 'IMAJINER_TEXT_MARKER_';
+		while ( false !== strpos( $source, $prefix ) ) {
+			$prefix .= '_';
+		}
+		return $prefix;
 	}
 
 	/**
@@ -271,13 +280,18 @@ class Imajiner_Template_Scanner {
 	 */
 	public function apply_changes( array $changes ) {
 		$by_id = array();
+		$marker_source = $this->masked;
 		foreach ( $changes as $change ) {
 			$error = $this->validate_change( $change );
 			if ( is_wp_error( $error ) ) {
 				return $error;
 			}
 			$by_id[ $change['id'] ][] = $change;
+			if ( is_string( $change['value'] ) ) {
+				$marker_source .= $change['value'];
+			}
 		}
+		$prefix = self::text_marker_prefix( $marker_source );
 
 		$processor = new WP_HTML_Tag_Processor( $this->masked );
 		$elements  = 0;
@@ -310,7 +324,7 @@ class Imajiner_Template_Scanner {
 				// Keep the whitespace around the text so the source layout doesn't change.
 				preg_match( '/^(\s*).*?(\s*)$/su', $text, $space );
 				$change = end( $by_id[ $id ] );
-				$key    = "\u{E000}imj-text:" . count( $new_texts ) . "\u{E000}";
+				$key    = $prefix . count( $new_texts );
 
 				// The HTML API escapes quotes in text as &quot;/&apos;. Write a marker
 				// instead and swap in text escaped only where HTML requires it.

@@ -262,7 +262,11 @@ class Imajiner_Css_Editor {
 		if ( $declaration && null !== $value ) {
 			$this->splice( $declaration['value_start'], $declaration['value_end'], $value );
 		} elseif ( $declaration ) {
-			$this->remove_declaration( $declaration );
+			foreach ( array_reverse( $rule['declarations'] ) as $candidate ) {
+				if ( $candidate['property'] === $property ) {
+					$this->remove_declaration( $candidate );
+				}
+			}
 		} elseif ( null !== $value ) {
 			$this->add_declaration( $rule, $property, $value );
 		}

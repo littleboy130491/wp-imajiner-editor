@@ -327,7 +327,8 @@ class Imajiner_Preview {
 		if ( $stage ) {
 			$prefix .= '-stage-' . get_current_user_id();
 		}
-		$file   = $dir . $prefix . '-' . md5( $source . IMAJINER_EDITOR_VERSION ) . '.php';
+		$instrumentation = hash_file( 'sha256', __DIR__ . '/class-imajiner-template-scanner.php' );
+		$file   = $dir . $prefix . '-' . md5( $source . IMAJINER_EDITOR_VERSION . $instrumentation ) . '.php';
 
 		if ( is_wp_error( Imajiner_Filesystem::validate_path( $file ) ) ) {
 			return false;
