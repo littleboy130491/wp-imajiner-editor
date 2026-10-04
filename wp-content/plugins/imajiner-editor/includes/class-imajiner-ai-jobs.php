@@ -7,6 +7,7 @@ class Imajiner_AI_Jobs {
 	const POST_TYPE = 'imajiner_ai_job';
 	const TTL = 3600;
 	const WORKER_LIMIT = 600;
+	private static $active_job = 0;
 
 	public static function init() {
 		if ( did_action( 'init' ) ) {
@@ -19,6 +20,7 @@ class Imajiner_AI_Jobs {
 		add_action( 'wp_ajax_imajiner_ai_dispatch', array( __CLASS__, 'dispatch' ) );
 		add_action( 'wp_ajax_nopriv_imajiner_ai_dispatch', array( __CLASS__, 'dispatch' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
+		add_filter( 'imajiner_ai_request_timeout', array( __CLASS__, 'request_timeout' ) );
 	}
 
 	public static function register_type() {
@@ -80,6 +82,8 @@ class Imajiner_AI_Jobs {
 
 	private static function job( $id ) {
 		$post = get_post( $id );
+		// Cancellation and watchdog updates can originate in another request.
+		wp_cache_delete( $id, 'post_meta' );
 		return $post && self::POST_TYPE === $post->post_type ? get_post_meta( $id, '_imajiner_job', true ) : null;
 	}
 
@@ -100,6 +104,8 @@ class Imajiner_AI_Jobs {
 			return;
 		}
 		$previous_user = get_current_user_id();
+		$previous_job = self::$active_job;
+		self::$active_job = $id;
 		wp_set_current_user( $job['owner'] );
 		wp_schedule_single_event( time() + self::WORKER_LIMIT, 'imajiner_ai_run_job', array( $id ) );
 		try {
@@ -110,6 +116,10 @@ class Imajiner_AI_Jobs {
 				$result = apply_filters( 'imajiner_ai_job_handler_' . $job['type'], null, get_post_meta( $id, '_imajiner_payload', true ), $id );
 			}
 			$current = self::job( $id );
+			if ( is_array( $current ) ) {
+				self::timeout( $id, $current );
+				$current = self::job( $id );
+			}
 			if ( is_array( $current ) && 'running' === $current['state'] && time() < $current['expires'] ) {
 				$finished = $current;
 				$finished['state'] = is_wp_error( $result ) || ! is_array( $result ) ? 'failed' : 'complete';
@@ -136,7 +146,27 @@ class Imajiner_AI_Jobs {
 		} finally {
 			delete_post_meta( $id, '_imajiner_payload' );
 			wp_set_current_user( $previous_user );
+			self::$active_job = $previous_job;
 		}
+	}
+
+	/** Guard every provider request, including generic handler retries and fallbacks. */
+	public static function request_timeout( $timeout ) {
+		if ( ! self::$active_job || is_wp_error( $timeout ) ) {
+			return $timeout;
+		}
+		$job = self::job( self::$active_job );
+		if ( ! is_array( $job ) || 'running' !== $job['state'] ) {
+			return new WP_Error( 'imajiner_job_stopped', __( 'The AI job stopped. No further provider requests were sent.', 'imajiner-editor' ) );
+		}
+		if ( $job['owner'] !== get_current_user_id() || $job['theme'] !== get_stylesheet() || ! Imajiner_Generation::can_generate() ) {
+			return new WP_Error( 'imajiner_job_access', __( 'The theme or editing permissions changed.', 'imajiner-editor' ) );
+		}
+		$remaining = min( $job['expires'], $job['started'] + self::WORKER_LIMIT ) - time() - 5;
+		if ( $remaining < 1 ) {
+			return new WP_Error( 'imajiner_job_timeout', __( 'The AI job reached its time limit. Try again.', 'imajiner-editor' ) );
+		}
+		return min( $timeout, $remaining );
 	}
 
 	public static function progress( $id, $percent ) {
