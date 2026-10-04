@@ -96,12 +96,14 @@ class Imajiner_Filesystem_Credentials {
 			}
 			$credentials = request_filesystem_credentials( admin_url( 'options-general.php?page=imajiner-filesystem' ), $method, false, WP_CONTENT_DIR, array() );
 			if ( is_array( $credentials ) ) {
-				if ( @WP_Filesystem( $credentials, WP_CONTENT_DIR ) ) {
+				$connected = Imajiner_Filesystem::connect( $credentials );
+				if ( ! is_wp_error( $connected ) ) {
 					update_user_meta( get_current_user_id(), self::META, array( 'cipher' => Imajiner_Secrets::encrypt( wp_json_encode( $credentials ) ), 'expires' => time() + 10 * MINUTE_IN_SECONDS, 'theme' => get_stylesheet(), 'session' => hash( 'sha256', wp_get_session_token() ) ) );
 					wp_schedule_single_event( time() + 10 * MINUTE_IN_SECONDS, 'imajiner_fs_expire', array( get_current_user_id() ) );
 					echo '<p>' . esc_html__( 'Connected. Return to the editor and retry.', 'imajiner-editor' ) . '</p>';
 				} else {
 					self::forget();
+					echo '<div class="notice notice-error"><p>' . esc_html( $connected->get_error_message() ) . '</p></div>';
 					request_filesystem_credentials( admin_url( 'options-general.php?page=imajiner-filesystem' ), $method, true, WP_CONTENT_DIR, array() );
 				}
 			}

@@ -5,6 +5,49 @@ defined( 'ABSPATH' ) || exit;
 require_once ABSPATH . 'wp-admin/includes/file.php';
 require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
 require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-ftpext.php';
+require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-ftpsockets.php';
+require_once ABSPATH . 'wp-admin/includes/class-ftp.php';
+require_once ABSPATH . 'wp-admin/includes/class-ftp-pure.php';
+
+class Imajiner_FTP_Pure extends ftp_pure {
+	public function rawlist( $pathname = '', $arg = '' ) {
+		$list = parent::rawlist( $pathname, $arg );
+		return false === $list && '' !== $arg ? parent::rawlist( $pathname ) : $list;
+	}
+}
+
+class WP_Filesystem_imajiner_ftpsockets extends WP_Filesystem_ftpsockets {
+	public function __construct( $options ) {
+		parent::__construct( $options );
+		$this->ftp = new Imajiner_FTP_Pure();
+	}
+}
+
+class WP_Filesystem_imajiner_ftpext extends WP_Filesystem_FTPext {
+	public function dirlist( $path = '.', $include_hidden = true, $recursive = false ) {
+		$list = $this->core_listing( $path, $include_hidden, $recursive );
+		return false === $list && $this->empty_directory( $path ) ? array() : $list;
+	}
+
+	protected function core_listing( $path, $include_hidden, $recursive ) {
+		return parent::dirlist( $path, $include_hidden, $recursive );
+	}
+
+	/** Core treats a successful, zero-entry FTP listing as a missing directory. */
+	protected function empty_directory( $path ) {
+		$cwd = @ftp_pwd( $this->link );
+		if ( false === $cwd || ! @ftp_chdir( $this->link, $path ) ) {
+			return false;
+		}
+		try {
+			$list = @ftp_rawlist( $this->link, '-a', false );
+		} finally {
+			$restored = @ftp_chdir( $this->link, $cwd );
+		}
+		return $restored && array() === $list;
+	}
+}
 
 /** Core's direct move deletes before rename and can fall back to copy. */
 class Imajiner_Atomic_Direct_Filesystem extends WP_Filesystem_Direct {
@@ -50,12 +93,33 @@ class Imajiner_Filesystem {
 				return true;
 			}
 		}
+		return self::connect( $credentials );
+	}
+
+	/** Also used by the credential screen, so it cannot bypass transport checks. */
+	public static function connect( array $credentials ) {
 		self::$client = null;
+		self::$context = null;
+		self::$method = null;
+		$method = get_filesystem_method( $credentials, WP_CONTENT_DIR );
+		$context = get_current_user_id() . '|' . get_stylesheet() . '|' . wp_get_session_token();
 		$class = 'WP_Filesystem_' . $method;
 		if ( ! in_array( $method, array( 'direct', 'ftpext', 'ftpsockets', 'ssh2' ), true ) && ! is_subclass_of( $class, 'WP_Filesystem_Base' ) ) {
 			return self::error( 'imajiner_filesystem_method' );
 		}
-		if ( ! @WP_Filesystem( $credentials, WP_CONTENT_DIR ) ) {
+		$credentials = self::prepare_credentials( $credentials, $method );
+		if ( is_wp_error( $credentials ) ) {
+			return $credentials;
+		}
+		if ( in_array( $method, array( 'ftpext', 'ftpsockets' ), true ) ) {
+			add_filter( 'filesystem_method', array( __CLASS__, 'ftp_method' ), PHP_INT_MAX );
+		}
+		try {
+			$connected = @WP_Filesystem( $credentials, WP_CONTENT_DIR );
+		} finally {
+			remove_filter( 'filesystem_method', array( __CLASS__, 'ftp_method' ), PHP_INT_MAX );
+		}
+		if ( ! $connected ) {
 			return self::error( 'imajiner_filesystem_credentials' );
 		}
 		global $wp_filesystem;
@@ -68,8 +132,63 @@ class Imajiner_Filesystem {
 		return true;
 	}
 
-	public static function error( $code = 'imajiner_filesystem_failed' ) {
-		return new WP_Error( $code, __( 'The filesystem operation could not be completed. Check filesystem access in Settings → Imajiner Filesystem, then retry.', 'imajiner-editor' ), array( 'status' => 503, 'settings_url' => admin_url( 'options-general.php?page=imajiner-filesystem' ) ) );
+	public static function ftp_method( $method ) {
+		return in_array( $method, array( 'ftpext', 'ftpsockets' ), true ) ? 'imajiner_' . $method : $method;
+	}
+
+	/** Normalize wp-config endpoints without silently changing encryption policy. */
+	public static function prepare_credentials( array $credentials, $method ) {
+		foreach ( array( 'hostname' => 'FTP_HOST', 'username' => 'FTP_USER', 'password' => 'FTP_PASS', 'public_key' => 'FTP_PUBKEY', 'private_key' => 'FTP_PRIKEY' ) as $name => $constant ) {
+			if ( defined( $constant ) ) {
+				$credentials[ $name ] = constant( $constant );
+			}
+		}
+		if ( isset( $credentials['hostname'] ) ) {
+			$host = $credentials['hostname'];
+			if ( ! is_string( $host ) || preg_match( '/[\x00-\x20\x7f]/', $host ) ) {
+				return self::error( 'imajiner_filesystem_credentials' );
+			}
+			if ( preg_match( '~^([a-z]+)://~i', $host, $matches ) ) {
+				$scheme = strtolower( $matches[1] );
+				if ( ! in_array( $scheme, array( 'ftp', 'ftps', 'ssh', 'sftp' ), true ) ) {
+					return self::error( 'imajiner_filesystem_credentials' );
+				}
+				if ( 'direct' !== $method && ( ( in_array( $scheme, array( 'ssh', 'sftp' ), true ) && 'ssh2' !== $method ) || ( in_array( $scheme, array( 'ftp', 'ftps' ), true ) && 'ssh2' === $method ) ) ) {
+					return self::error( 'imajiner_filesystem_credentials' );
+				}
+				if ( 'ftps' === $scheme ) {
+					$credentials['connection_type'] = 'ftps';
+				}
+				$host = substr( $host, strlen( $matches[0] ) );
+			}
+			$endpoint = wp_parse_url( 'ftp://' . $host );
+			if ( ! is_array( $endpoint ) || empty( $endpoint['host'] ) || isset( $endpoint['user'] ) || isset( $endpoint['pass'] ) || isset( $endpoint['path'] ) || isset( $endpoint['query'] ) || isset( $endpoint['fragment'] ) ) {
+				return self::error( 'imajiner_filesystem_credentials' );
+			}
+			$credentials['hostname'] = trim( $endpoint['host'], '[]' );
+			if ( isset( $endpoint['port'] ) ) {
+				$credentials['port'] = $endpoint['port'];
+			}
+		}
+		if ( isset( $credentials['port'] ) ) {
+			$port = $credentials['port'];
+			if ( ( ! is_int( $port ) && ! is_string( $port ) ) || ! preg_match( '/^[0-9]{1,5}$/D', (string) $port ) || (int) $port < 1 || (int) $port > 65535 ) {
+				return self::error( 'imajiner_filesystem_credentials' );
+			}
+			$credentials['port'] = (int) $port;
+		}
+		$tls = ( defined( 'FTP_SSL' ) && FTP_SSL ) || ( isset( $credentials['connection_type'] ) && 'ftps' === $credentials['connection_type'] );
+		if ( in_array( $method, array( 'ftpext', 'ftpsockets' ), true ) && $tls ) {
+			if ( 'ftpext' !== $method || ! function_exists( 'ftp_ssl_connect' ) ) {
+				return self::error( 'imajiner_filesystem_tls', __( 'Encrypted FTP requires the WordPress FTP extension with TLS support. The socket transport cannot send encrypted credentials.', 'imajiner-editor' ) );
+			}
+			$credentials['connection_type'] = 'ftps';
+		}
+		return $credentials;
+	}
+
+	public static function error( $code = 'imajiner_filesystem_failed', $message = null ) {
+		return new WP_Error( $code, null === $message ? __( 'The filesystem operation could not be completed. Check filesystem access in Settings → Imajiner Filesystem, then retry.', 'imajiner-editor' ) : $message, array( 'status' => 503, 'settings_url' => admin_url( 'options-general.php?page=imajiner-filesystem' ) ) );
 	}
 
 	/** Validate local names before translating into a transport's content root. */
@@ -129,6 +248,19 @@ class Imajiner_Filesystem {
 				$valid = self::ssh_path( $ancestor );
 				if ( is_wp_error( $valid ) ) {
 					return $valid;
+				}
+				$ancestor = dirname( $ancestor );
+			}
+		} else {
+			$ancestor = $cursor;
+			while ( '/' !== $ancestor ) {
+				$list = self::$client->dirlist( dirname( $ancestor ), true, false );
+				$name = basename( $ancestor );
+				if ( ! is_array( $list ) || ! isset( $list[ $name ] ) ) {
+					return self::error( 'imajiner_remote_link_check' );
+				}
+				if ( ! isset( $list[ $name ]['type'] ) || 'd' !== $list[ $name ]['type'] || ! empty( $list[ $name ]['islink'] ) ) {
+					return self::path_error();
 				}
 				$ancestor = dirname( $ancestor );
 			}
@@ -198,8 +330,17 @@ class Imajiner_Filesystem {
 		if ( is_wp_error( $path ) ) {
 			return $path;
 		}
-		$mode = self::$client->getchmod( $path );
-		return is_string( $mode ) && preg_match( '/^[0-7]{3,4}$/', $mode ) ? octdec( $mode ) & 0777 : self::error( 'imajiner_permissions' );
+		return self::mode( $path );
+	}
+
+	private static function mode( $path ) {
+		if ( in_array( self::$client->method, array( 'ftpext', 'ftpsockets' ), true ) ) {
+			$list = self::$client->dirlist( dirname( $path ), true, false );
+			$mode = is_array( $list ) && isset( $list[ basename( $path ) ]['permsn'] ) ? $list[ basename( $path ) ]['permsn'] : false;
+		} else {
+			$mode = self::$client->getchmod( $path );
+		}
+		return is_string( $mode ) && preg_match( '/^[0-7]{3,4}$/D', $mode ) ? octdec( $mode ) & 0777 : self::error( 'imajiner_permissions' );
 	}
 
 	public static function mkdir( $path ) {
@@ -252,7 +393,7 @@ class Imajiner_Filesystem {
 		$extension = 'php' === pathinfo( $path, PATHINFO_EXTENSION ) ? '.php' : '.css';
 		$temp = dirname( $mapped ) . '/.imj-' . wp_generate_password( 32, false, false ) . $extension;
 		$backup = dirname( $mapped ) . '/.imj-' . wp_generate_password( 32, false, false ) . $extension;
-		if ( ! self::$client->put_contents( $temp, $contents, $mode ) || self::$client->get_contents( $temp ) !== $contents || ! self::$client->chmod( $temp, $mode ) ) {
+		if ( ! self::$client->put_contents( $temp, $contents, $mode ) || self::$client->get_contents( $temp ) !== $contents || ! self::$client->chmod( $temp, $mode ) || self::mode( $temp ) !== $mode ) {
 			self::$client->delete( $temp );
 			return self::error( 'imajiner_write_failed' );
 		}
@@ -263,7 +404,7 @@ class Imajiner_Filesystem {
 		}
 		$done = self::$client->move( $temp, $mapped, ! $remote && $exists );
 		$installed = $done;
-		if ( $done && self::$client->get_contents( $mapped ) !== $contents ) {
+		if ( $done && ( self::$client->get_contents( $mapped ) !== $contents || self::mode( $mapped ) !== $mode ) ) {
 			$done = false;
 		}
 		if ( ! $done ) {
