@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schemas.wp.org/wp/6.7/theme.json",
+  "version": 3,
+  "styles": {
+    "color": { "background": "var(--imj-color-bg)", "text": "var(--imj-color-text)" },
+    "typography": { "fontFamily": "var(--imj-font-body)", "fontSize": "var(--imj-text-base)", "lineHeight": "var(--imj-leading)" }
+  }
+}

@@ -1,0 +1,29 @@
+/* Content styles shared by the iframe and non-iframe block editors. */
+.editor-styles-wrapper {
+	background: var(--imj-color-bg);
+	color: var(--imj-color-text);
+	font-family: var(--imj-font-body);
+	font-size: var(--imj-text-base);
+	line-height: var(--imj-leading);
+}
+.editor-styles-wrapper .wp-block {
+	max-width: var(--imj-container-narrow);
+}
+.editor-styles-wrapper .wp-block[data-align="wide"] {
+	max-width: var(--imj-container);
+}
+.editor-styles-wrapper .wp-block[data-align="full"] {
+	max-width: none;
+}
+.editor-styles-wrapper a { color: var(--imj-color-primary); }
+.editor-styles-wrapper :is(h1, h2, h3, h4, h5, h6) { font-family: var(--imj-font-heading); }
+.editor-styles-wrapper h1 { font-size: var(--imj-text-3xl); }
+.editor-styles-wrapper h2 { font-size: var(--imj-text-2xl); }
+.editor-styles-wrapper h3 { font-size: var(--imj-text-xl); }
+.editor-styles-wrapper h4 { font-size: var(--imj-text-lg); }
+.editor-styles-wrapper .wp-block-button__link {
+	background: var(--imj-color-primary);
+	color: var(--imj-color-primary-contrast);
+	border-radius: var(--imj-radius);
+	padding: var(--imj-space-2) var(--imj-space-4);
+}
