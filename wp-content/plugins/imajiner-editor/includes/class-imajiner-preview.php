@@ -250,6 +250,12 @@ class Imajiner_Preview {
 		list( $kind, $name ) = array_pad( explode( ':', $location, 2 ), 2, '' );
 
 		switch ( $kind ) {
+			case 'front':
+				return home_url( '/' );
+
+			case 'home':
+				$page = (int) get_option( 'page_for_posts' );
+				return $page ? get_permalink( $page ) : home_url( '/' );
 			case 'single':
 				$posts = get_posts(
 					array(
@@ -265,6 +271,12 @@ class Imajiner_Preview {
 				return $url ? $url : '';
 
 			case 'taxonomy':
+				list( $taxonomy, $slug ) = array_pad( explode( ':', $name, 2 ), 2, '' );
+				if ( $slug ) {
+					$term = get_term_by( 'slug', $slug, $taxonomy );
+					$url = $term ? get_term_link( $term ) : '';
+					return is_wp_error( $url ) ? '' : $url;
+				}
 				$terms = get_terms(
 					array(
 						'taxonomy'   => $name,
@@ -297,13 +309,19 @@ class Imajiner_Preview {
 	 * @return string|false Instrumented file path, or false if it couldn't be written.
 	 */
 	private static function build( $path ) {
+		if ( is_wp_error( Imajiner_Filesystem::validate_path( $path, true ) ) ) {
+			return false;
+		}
 		$dir = self::cache_dir();
 		if ( ! $dir ) {
 			return false;
 		}
 
 		$stage = self::stage( self::current() );
-		$source = $stage ? $stage['php'] : file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$source = $stage ? $stage['php'] : Imajiner_Filesystem::read( $path );
+		if ( is_wp_error( $source ) ) {
+			return false;
+		}
 		// Prefix with the path so a part and a template with the same file name don't collide.
 		$prefix = substr( md5( $path ), 0, 8 ) . '-' . basename( $path, '.php' );
 		if ( $stage ) {
@@ -311,29 +329,32 @@ class Imajiner_Preview {
 		}
 		$file   = $dir . $prefix . '-' . md5( $source . IMAJINER_EDITOR_VERSION ) . '.php';
 
-		if ( file_exists( $file ) ) {
+		if ( is_wp_error( Imajiner_Filesystem::validate_path( $file ) ) ) {
+			return false;
+		}
+		if ( Imajiner_Filesystem::exists( $file ) ) {
 			if ( $stage ) {
-				register_shutdown_function( 'wp_delete_file', $file );
+				register_shutdown_function( array( 'Imajiner_Filesystem', 'delete' ), $file );
 			}
 			return $file;
 		}
 
 		foreach ( (array) glob( $dir . $prefix . '-*.php' ) as $stale ) {
 			if ( ! $stage && false === strpos( basename( $stale ), '-stage-' ) ) {
-				wp_delete_file( $stale );
+				Imajiner_Filesystem::delete( $stale );
 			} elseif ( filemtime( $stale ) < time() - HOUR_IN_SECONDS ) {
-				wp_delete_file( $stale );
+				Imajiner_Filesystem::delete( $stale );
 			}
 		}
 
 		$scanner = new Imajiner_Template_Scanner( $source );
 		// The guard stops the copy doing anything if it's requested directly.
-		$written = file_put_contents( $file, "<?php defined( 'ABSPATH' ) || exit; ?>" . $scanner->get_instrumented_source() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		if ( false !== $written && $stage ) {
-			register_shutdown_function( 'wp_delete_file', $file );
+		$written = Imajiner_Filesystem::write( $file, "<?php defined( 'ABSPATH' ) || exit; ?>" . $scanner->get_instrumented_source() );
+		if ( ! is_wp_error( $written ) && $stage ) {
+			register_shutdown_function( array( 'Imajiner_Filesystem', 'delete' ), $file );
 		}
 
-		return false === $written ? false : $file;
+		return is_wp_error( $written ) ? false : $file;
 	}
 
 	/**
@@ -345,14 +366,18 @@ class Imajiner_Preview {
 		$uploads = wp_upload_dir( null, false );
 		$dir     = trailingslashit( $uploads['basedir'] ) . 'imajiner/preview/';
 
-		if ( ! is_dir( $dir ) ) {
-			if ( ! wp_mkdir_p( $dir ) ) {
+		if ( is_wp_error( Imajiner_Filesystem::validate_path( untrailingslashit( $dir ) ) ) ) {
+			return false;
+		}
+		if ( ! Imajiner_Filesystem::exists( $dir ) ) {
+			if ( is_wp_error( Imajiner_Filesystem::mkdir( $dir ) ) ) {
 				return false;
 			}
-			// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-			file_put_contents( $dir . 'index.php', "<?php\n// Silence is golden.\n" );
-			file_put_contents( $dir . '.htaccess', "Require all denied\n" );
-			// phpcs:enable
+		}
+		foreach ( array( 'index.php' => "<?php defined('ABSPATH') || exit;", '.htaccess' => "Require all denied\n" ) as $name => $source ) {
+			if ( ! Imajiner_Filesystem::exists( $dir . $name ) && is_wp_error( Imajiner_Filesystem::write( $dir . $name, $source ) ) ) {
+				return false;
+			}
 		}
 
 		return $dir;

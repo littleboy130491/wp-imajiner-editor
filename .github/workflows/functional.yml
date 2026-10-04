@@ -1,0 +1,59 @@
+name: Functional checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  wordpress:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        php: ['7.4', '8.1']
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: imajiner-local-ci
+          MYSQL_DATABASE: imajiner_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pimajiner-local-ci"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, curl, sodium, dom, mbstring
+          tools: phpunit:9.6, wp-cli
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: PHP syntax
+        run: find wp-content/plugins/imajiner-editor wp-content/themes/imajiner wp-content/themes/imajiner-child -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: JavaScript syntax and undefined names
+        run: |
+          find wp-content/plugins/imajiner-editor/assets wp-content/themes/imajiner/assets wp-content/plugins/imajiner-editor/tests -name '*.js' -print0 | xargs -0 -n1 node --check
+          npm install --global eslint@10.11.0
+          eslint --config wp-content/plugins/imajiner-editor/tests/eslint.config.mjs wp-content/plugins/imajiner-editor/assets/js/*.js wp-content/themes/imajiner/assets/js/*.js wp-content/plugins/imajiner-editor/tests/*.js wp-content/plugins/imajiner-editor/tests/e2e/*.js
+          node --test wp-content/plugins/imajiner-editor/tests/ThemeNavigationTest.js wp-content/plugins/imajiner-editor/tests/EditorRuntimeIntegrationTest.js
+      - name: Install disposable WordPress 6.7.4
+        run: |
+          curl --fail --silent --show-error --location https://wordpress.org/wordpress-6.7.4.tar.gz | tar xz --strip-components=1 --exclude='wordpress/wp-content'
+          wp config create --dbname=imajiner_test --dbuser=root --dbpass=imajiner-local-ci --dbhost=127.0.0.1:3306 --skip-check
+          wp core install --url=http://localhost:8097 --title=Disposable --admin_user=ci_admin --admin_password="$(openssl rand -hex 24)" --admin_email=ci@localhost.test --skip-email
+          wp theme activate imajiner-child
+          wp plugin activate imajiner-editor
+      - name: WordPress integration regressions
+        run: IMAJINER_TEST_SITE=1 phpunit --bootstrap wp-content/plugins/imajiner-editor/tests/bootstrap.php wp-content/plugins/imajiner-editor/tests
+      - name: E2E harness dependency and discovery checks (no browser run)
+        working-directory: wp-content/plugins/imajiner-editor/tests/e2e
+        run: |
+          npm ci --ignore-scripts
+          npm run test:list
+      - name: Translation catalog generation
+        run: wp i18n make-pot . wp-content/plugins/imajiner-editor/languages/imajiner-editor.pot --domain=imajiner-editor --include=wp-content/plugins/imajiner-editor,wp-content/themes/imajiner,wp-content/themes/imajiner-child --exclude=wp-content/plugins/imajiner-editor/tests --skip-audit
+      - name: Whitespace
+        run: git diff --check

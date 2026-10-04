@@ -16,8 +16,9 @@ defined( 'ABSPATH' ) || exit;
 		<button type="button" class="button" id="imj-design-media"><?php esc_html_e( 'Choose or upload screenshot', 'imajiner-editor' ); ?></button>
 		<button type="button" class="button" id="imj-design-remove" hidden><?php esc_html_e( 'Remove screenshot', 'imajiner-editor' ); ?></button>
 		<span id="imj-design-image-name"></span>
-		<p><?php esc_html_e( 'PNG, JPEG or WebP, maximum 5 MB. The actual image URL and extracted reference styles will be sent to your configured AI provider. The provider must support images and be able to access the screenshot URL.', 'imajiner-editor' ); ?></p>
+		<p><?php esc_html_e( 'PNG, JPEG or WebP, maximum 5 MB. The actual image bytes and extracted reference styles will be sent to your configured AI provider using its native image payload. The provider must support images.', 'imajiner-editor' ); ?></p>
 		<p><button class="button button-primary" type="submit" id="imj-design-extract" disabled><?php esc_html_e( 'Extract for review', 'imajiner-editor' ); ?></button></p>
+		<button class="button" type="button" id="imj-design-stop" hidden><?php esc_html_e( 'Cancel extraction', 'imajiner-editor' ); ?></button>
 	</form>
 	<section id="imj-design-review" hidden aria-labelledby="imj-design-review-title">
 		<h2 id="imj-design-review-title"><?php esc_html_e( 'Review proposal — nothing has been saved', 'imajiner-editor' ); ?></h2>

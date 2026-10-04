@@ -34,7 +34,7 @@ class Imajiner_AI {
 	/**
 	 * Claude models that accept Anthropic's server-side refusal fallback ("fallbacks": "default").
 	 */
-	const ANTHROPIC_FALLBACK_MODELS = array();
+	const ANTHROPIC_FALLBACK_MODELS = array( 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5', 'claude-fable-5', 'claude-opus-5-5', 'claude-sonnet-5-5' );
 
 	private static $attempts = array();
 	private static $response_meta = array();
@@ -109,9 +109,9 @@ class Imajiner_AI {
 				'key_url'  => 'https://console.x.ai/',
 			),
 			'meta'       => array(
-				'label'    => __( 'Meta / Llama (configure verified endpoint)', 'imajiner-editor' ),
-				'base_url' => null,
-				'key_url'  => 'https://www.llama.com/products/llama-api/',
+				'label'    => 'Meta / Llama',
+				'base_url' => 'https://api.meta.ai/v1',
+				'key_url'  => 'https://dev.meta.ai/',
 			),
 			'mistral'    => array(
 				'label'    => 'Mistral',
@@ -536,7 +536,16 @@ class Imajiner_AI {
 				if ( is_array( $message['content'] ) ) {
 					$blocks = array();
 					foreach ( $message['content'] as $part ) {
-						$blocks[] = 'text' === $part['type'] ? array( 'type' => 'text', 'text' => $part['text'] ) : array( 'type' => 'image', 'source' => array( 'type' => 'url', 'url' => $part['image_url']['url'] ) );
+						if ( 'text' === $part['type'] ) {
+							$blocks[] = array( 'type' => 'text', 'text' => $part['text'] );
+						} else {
+							$url = $part['image_url']['url'];
+							$source = array( 'type' => 'url', 'url' => $url );
+							if ( preg_match( '~^data:(image/(?:png|jpeg|webp));base64,(.+)$~sD', $url, $image ) ) {
+								$source = array( 'type' => 'base64', 'media_type' => $image[1], 'data' => $image[2] );
+							}
+							$blocks[] = array( 'type' => 'image', 'source' => $source );
+						}
 					}
 					$message['content'] = $blocks;
 				}
@@ -553,7 +562,12 @@ class Imajiner_AI {
 			$body['system'] = implode( "\n\n", $system );
 		}
 
-		$data = self::request( $provider, 'POST', '/messages', $body, $timeout );
+		$headers = array();
+		if ( in_array( $model, self::ANTHROPIC_FALLBACK_MODELS, true ) ) {
+			$body['fallbacks'] = 'default';
+			$headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+		}
+		$data = self::request( $provider, 'POST', '/messages', $body, $timeout, $headers );
 		if ( is_wp_error( $data ) ) {
 			return $data;
 		}
@@ -694,7 +708,7 @@ class Imajiner_AI {
 				foreach ( $content as $part ) {
 					$valid = is_array( $part ) && isset( $part['type'] ) && ( ( 'text' === $part['type'] && isset( $part['text'] ) && is_string( $part['text'] ) ) || ( 'image_url' === $part['type'] && isset( $part['image_url']['url'] ) && is_string( $part['image_url']['url'] ) && self::image_url( $part['image_url']['url'] ) ) );
 					if ( ! $valid ) {
-						return new WP_Error( 'imajiner_ai_image', __( 'Use text and public HTTPS image URLs only.', 'imajiner-editor' ) );
+						return new WP_Error( 'imajiner_ai_image', __( 'Use text, public HTTPS images or verified bounded image data only.', 'imajiner-editor' ) );
 					}
 				}
 			} elseif ( ! is_string( $content ) ) {
@@ -706,6 +720,11 @@ class Imajiner_AI {
 	}
 
 	public static function image_url( $url ) {
+		if ( is_string( $url ) && strlen( $url ) <= 7000000 && preg_match( '~^data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$~D', $url, $image ) ) {
+			$bytes = base64_decode( $image[2], true );
+			$info = false !== $bytes ? @getimagesizefromstring( $bytes ) : false;
+			return $info && strlen( $bytes ) <= 5242880 && $info['mime'] === $image[1] && $info[0] * $info[1] <= 50000000;
+		}
 		$parts = wp_parse_url( $url );
 		return is_array( $parts ) && isset( $parts['scheme'], $parts['host'] ) && 'https' === strtolower( $parts['scheme'] ) && ! isset( $parts['user'] ) && ! isset( $parts['pass'] ) && (bool) wp_http_validate_url( $url );
 	}

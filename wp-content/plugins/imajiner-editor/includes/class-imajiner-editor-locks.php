@@ -14,7 +14,16 @@ class Imajiner_Editor_Locks {
 	}
 
 	private static function owner() {
-		return hash( 'sha256', get_current_user_id() . ':' . wp_get_session_token() );
+		$cookie = wp_parse_auth_cookie( '', 'logged_in' );
+		$token = is_array( $cookie ) && ! empty( $cookie['token'] ) ? $cookie['token'] : wp_get_session_token();
+		return hash( 'sha256', get_current_user_id() . ':' . $token );
+	}
+
+	/** Writes respect existing editing sessions without opening an editor themselves. */
+	public static function check( $template ) {
+		$lock = get_option( self::key( $template ) );
+		return $lock && $lock['expires'] > time() && $lock['owner'] !== self::owner()
+			? new WP_Error( 'imajiner_locked', __( 'Another editing session holds this template.', 'imajiner-editor' ), array( 'status' => 423 ) ) : true;
 	}
 
 	/** Compare-and-swap prevents an expired lock deleting a newer owner's lock. */

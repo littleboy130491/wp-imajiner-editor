@@ -1,0 +1,2538 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-04T09:15:41+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: imajiner-editor\n"
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:41
+msgid "This AI job is not available."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:45
+msgid "The AI job payload is invalid or too large."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:108
+msgid "The theme or editing permissions changed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:175
+msgid "AI job not found."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:179
+msgid "This AI job expired."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:197
+msgid "AI generation failed. Try again or check your provider settings."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai-jobs.php:211
+msgid "The AI job changed. Try cancelling again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:132
+msgid "Other OpenAI-compatible"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:284
+msgid "Real provider smoke tests require explicit CLI opt-in."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:336
+msgid "Enter a valid base URL, e.g. https://api.example.com/v1."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:342
+msgid "The base URL must use https:// (http:// is only allowed for servers on this machine)."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:399
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:450
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:495
+msgid "Unknown AI provider."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:407
+msgid "Choose an AI model in Settings → Imajiner Editor."
+msgstr ""
+
+#. translators: 1: primary model error, 2: fallback model error.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:425
+#, php-format
+msgid "Primary model: %1$s Fallback model: %2$s"
+msgstr ""
+
+#. translators: %s: provider name.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:455
+#, php-format
+msgid "No API key is set for %s."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:459
+msgid "Choose a model in Settings → Imajiner Editor."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:481
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:581
+msgid "The AI provider sent a response the editor doesn’t understand."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:577
+msgid "The model declined this request."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:590
+msgid "The model returned no text."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:607
+msgid "No API key is set for this provider."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:612
+msgid "No base URL is set for this provider."
+msgstr ""
+
+#. translators: 1: HTTP status code, 2: error message from the provider.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:664
+#, php-format
+msgid "The AI provider returned an error (%1$d): %2$s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:670
+msgid "The AI provider did not return JSON. Check the base URL."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:701
+msgid "Invalid AI message."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:711
+msgid "Use text, public HTTPS images or verified bounded image data only."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-ai.php:715
+msgid "Invalid AI message content."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:48
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:17
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:52
+msgid "New page with AI"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:57
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:58
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:546
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:47
+msgid "Imajiner Templates"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:79
+msgid "Enter a template name using letters and numbers."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:82
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:123
+msgid "Unknown location."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:120
+msgid "Enter a part name using letters and numbers."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:166
+msgid "A template or stylesheet changed. Reload before saving locations."
+msgstr ""
+
+#. translators: %d: number of files changed.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:197
+#, php-format
+msgid "Locations saved (%d file updated)."
+msgid_plural "Locations saved (%d files updated)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:198
+msgid "No changes."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:222
+msgid "Before changing template locations"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:245
+msgid "Only child-theme assignments can be changed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:263
+msgid "You are not allowed to change part settings."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:271
+msgid "Unknown part location."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:278
+msgid "Invalid part display conditions."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:282
+msgid "Unknown part display condition."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:292
+msgid "The part changed. Reload before saving settings."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:304
+msgid "Before changing part display settings"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:342
+msgid "The file has no header comment to add the location to."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:547
+msgid "Template parts are reusable pieces like the header and footer. Templates design whole pages: page templates are chosen per page, single and archive templates apply to the locations you assign below. Everything is saved as files in the child theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:577
+msgid "Template parts"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:579
+msgid "Part"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:579
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:626
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:695
+msgid "Location"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:579
+msgid "Use in a template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:582
+msgid "No template parts yet."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:589
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:697
+msgid "None (only where a template includes it)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:595
+msgid "Display conditions"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:596
+msgid "Empty selections mean all requests. Includes match any selected location; excludes always win. Conditions also apply to explicit part calls."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:597
+msgid "Post types"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:597
+msgid "Include locations"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:597
+msgid "Exclude locations"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:617
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:683
+msgid "Edit"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:623
+msgid "Locations"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:624
+msgid "Choose the template for each kind of page. Post types and taxonomies are detected from the site. The most specific match wins: a template for \"Single Product\" is used before one for \"All single posts and pages\". A template chosen on an individual page or post overrides its location."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:626
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:665
+msgid "Template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:633
+msgid "Theme default"
+msgstr ""
+
+#. translators: %s: template names.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:642
+#, php-format
+msgid "Claimed by several templates (%s); the first is used. Saving keeps only the selected one."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:652
+msgid "Save locations"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:656
+msgid "Manage part files"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:663
+msgid "Templates"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:665
+msgid "Used for"
+msgstr ""
+
+#. translators: %s: post types.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:678
+#, php-format
+msgid "Pages that choose it (%s)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:680
+msgid "Not assigned"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:691
+msgid "New template part"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:694
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:717
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:712
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1096
+msgid "Name"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:694
+msgid "e.g. Before footer CTA"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:703
+msgid "Start from"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:705
+msgid "A blank section"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:706
+msgid "A copy of the default header"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:707
+msgid "A copy of the default footer"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:710
+msgid "Create part"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:714
+msgid "New template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:717
+msgid "e.g. Product page"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:718
+msgid "Type"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:720
+msgid "Page template (chosen per page)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:721
+msgid "Single or archive template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:724
+msgid "Location (single or archive templates)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:726
+msgid "Not assigned yet"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:732
+msgid "Create template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-builder.php:746
+msgid "You are not allowed to manage templates."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-css-editor.php:232
+msgid "The template stylesheet has an unclosed block, so it can’t be edited safely. Fix it in code first."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-css-editor.php:281
+msgid "Invalid style change."
+msgstr ""
+
+#. translators: %s: CSS property name.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-css-editor.php:304
+#, php-format
+msgid "The value for %s contains characters that aren’t allowed in a style value."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:29
+#: wp-content/plugins/imajiner-editor/views/design-system.php:6
+msgid "AI Design System"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:59
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:64
+msgid "You cannot edit theme files."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:62
+msgid "Activate an Imajiner child theme before saving a design system."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:73
+msgid "The theme filesystem service is unavailable."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:87
+msgid "The child theme path is unsafe."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:97
+msgid "Symlinks and invalid theme directories are not allowed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:118
+msgid "The design token file is too large to edit safely."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:135
+msgid "Return between 1 and 100 named design tokens."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:160
+#, php-format
+msgid "Unsafe or unsupported token: %s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:166
+msgid "The proposed tokens failed validation. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:178
+msgid "The token file contains unsupported CSS. Preserve it and review it manually before extraction."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:187
+msgid "The token file contains malformed or duplicate declarations."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:220
+msgid "Enter a public HTTPS reference URL."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:224
+msgid "Only public HTTPS URLs without credentials, fragments or custom ports are allowed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:228
+msgid "Internal reference URLs are not allowed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:241
+msgid "The reference host has no public address."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:245
+msgid "Private or reserved reference addresses are not allowed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:260
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:436
+msgid "The design tokens changed. Reload before extracting."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:264
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:442
+msgid "Invalid design-system input."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:267
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:445
+msgid "Supply a prompt, screenshot or HTTPS reference URL."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:293
+msgid "Safe reference fetching requires the PHP cURL extension."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:298
+msgid "The reference host must resolve to a public IPv4 address."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:326
+msgid "The reference could not be fetched safely."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:333
+msgid "The reference must be a bounded HTML page or CSS stylesheet without redirects."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:380
+msgid "A reference stylesheet was skipped because it failed safety checks."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:398
+msgid "No supported color, typography or spacing evidence was found on the reference page."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:406
+msgid "Choose an image you are allowed to edit from the media library."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:413
+msgid "The screenshot must be a local media-library image no larger than 5 MB."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:419
+msgid "Only verified PNG, JPEG and WebP screenshots are supported."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:422
+msgid "The screenshot could not be read safely."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:464
+msgid "AI must return a JSON object containing tokens and a short summary."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:478
+msgid "The review proposal could not be stored. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:485
+msgid "The extraction job does not belong to this user and theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:498
+msgid "Explicitly confirm saving the reviewed design tokens."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:502
+msgid "Invalid proposal identifier."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:506
+msgid "This proposal expired. Extract the design system again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:509
+msgid "This proposal belongs to another user or theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:512
+msgid "This extraction job is no longer available for acceptance."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:543
+msgid "Review the revision and explicitly confirm restoring it."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:547
+msgid "Design-system revision not found for this theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:567
+msgid "Another design-system save is in progress. Try again shortly."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:576
+msgid "The design tokens changed after review. Reload and extract again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:593
+msgid "The staged token file could not be verified. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:595
+msgid "Before design-system save"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:597
+msgid "A private revision could not be saved. The token file was not changed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:603
+msgid "The token file changed during saving. Nothing was overwritten."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:616
+msgid "Saving and rollback failed. Restore the retained private revision before continuing."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-design-system.php:619
+msgid "The token save failed. A private revision was retained."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor-locks.php:26
+msgid "Another editing session holds this template."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor-locks.php:43
+msgid "Another editing session holds this template. Wait for its lock to expire or ask them to close the editor."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor-locks.php:53
+msgid "The editing lock changed. Try again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor-locks.php:59
+msgid "Another session acquired this template."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:206
+msgid "Imajiner Editor needs the Imajiner theme (or a child theme of it) to be active."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:222
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:41
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:42
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:307
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:51
+msgid "Imajiner Editor"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:273
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:289
+msgid "You are not allowed to edit this template."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:278
+msgid "This page does not use an Imajiner template. Choose one under Template in the page settings and save the page, or assign a single template under Appearance → Imajiner Templates."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:296
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:69
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:199
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:443
+msgid "Template not found."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:320
+msgid "Page template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:321
+msgid "Single / archive template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:322
+msgid "Template part"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:331
+msgid "Back to page"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:331
+msgid "Back to templates"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:414
+msgid "Desktop"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:420
+msgid "Tablet"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:425
+msgid "Mobile"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-editor.php:444
+msgid "Use an ordered list of 1–8 named breakpoints with a base first, safe media conditions, labels and widths of 240–3840 pixels."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:16
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:81
+msgid "Imajiner Filesystem"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:71
+msgid "You cannot change cleanup settings."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:74
+msgid "Cleanup preference saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:79
+msgid "Filesystem credentials removed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:85
+msgid "Use WordPress filesystem credentials to permit FTP or SSH writes. Credentials expire after ten minutes and are encrypted for your current login and theme only. Retry the editor operation after connecting. Configure FS_METHOD in wp-config.php to choose a transport; the plugin never falls back from a remote transport to direct writes."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:88
+msgid "WordPress is using direct filesystem access. No credentials are required."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:90
+msgid "Open this settings screen over HTTPS before entering filesystem credentials."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:92
+msgid "The sodium PHP extension is required to encrypt temporary filesystem credentials. Ask your host to enable it or provision credentials in wp-config.php."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:102
+msgid "Connected. Return to the editor and retry."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:112
+msgid "Forget my filesystem credentials"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:115
+msgid "When deleting the plugin"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:117
+msgid "Remove preview cache and template revisions on uninstall (default: keep). Client theme PHP and CSS files are never deleted."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem-credentials.php:118
+msgid "Save cleanup preference"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem.php:72
+msgid "The filesystem operation could not be completed. Check filesystem access in Settings → Imajiner Filesystem, then retry."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-filesystem.php:105
+msgid "The file must be inside the active child theme or the private preview cache, without symbolic links."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:64
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:164
+msgid "You cannot edit templates."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:72
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:204
+msgid "You cannot create pages."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:78
+msgid "Enter a name using letters and numbers."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:82
+msgid "Copy this template into the child theme before normalizing it."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:85
+msgid "That template or stylesheet already exists. Use another name."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:93
+msgid "The template changed. Generate a fresh proposal."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:97
+msgid "Describe the page to create."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:145
+msgid "The proposal could not be stored. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:167
+msgid "Explicitly accept the reviewed proposal before saving."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:171
+msgid "This proposal is already being accepted."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:184
+msgid "This proposal expired. Generate it again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:187
+msgid "This AI job is no longer available. Generate the proposal again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:190
+msgid "The active theme changed. Generate the proposal again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:201
+msgid "Before AI normalization"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:208
+msgid "That stylesheet already exists. Generate with another name."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:228
+msgid "The template was saved, but a draft page could not be created. Assign the template to a page manually."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-generation.php:317
+msgid "The AI output did not pass validation. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-preview.php:172
+msgid "This preview expired. Make another edit to refresh it."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-preview.php:179
+msgid "The theme or template changed. Reload the editor."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:167
+msgid "The template changed. Reload before editing."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:174
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:557
+msgid "Invalid change."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:190
+msgid "Invalid change batch."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:231
+msgid "Proposal styles must stay scoped to this template."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:238
+msgid "Invalid structural operation."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:252
+msgid "Too many changes. Save before continuing."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:268
+#, php-format
+msgid "Before saving %d change"
+msgid_plural "Before saving %d changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:297
+msgid "Saving would change PHP code in the template, so nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:315
+msgid "Unknown device for a style change."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:323
+msgid "Unknown style state."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:331
+msgid "Select an existing scoped style rule."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:382
+msgid "Before restoring an earlier version"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:428
+msgid "Current"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-rest.php:428
+msgid "Revision"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:37
+msgid "Select a template in the child theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:44
+msgid "The template changed. Reload before using AI."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:96
+msgid "The proposal could not be stored."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:106
+msgid "Return JSON with string fields html and css."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:108
+msgid "PHP and scanner placeholders are not allowed in visual AI edits."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:116
+msgid "Keep exactly one root of the original kind and the original section name."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:121
+msgid "The replacement needs exactly one root element with the requested scope class."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:126
+msgid "Scripts, embedded documents, event handlers and inline styles are not allowed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:131
+msgid "Use safe media and link URLs."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:145
+msgid "All PHP outside the selection must stay byte-identical."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:149
+msgid "The selected edit failed validation. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:157
+msgid "This proposal cannot be accepted."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:162
+msgid "This proposal expired."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:165
+msgid "The active theme changed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:175
+msgid "Before selected AI edit"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:196
+msgid "Select a static section or element. PHP-containing nodes stay locked."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-ai.php:241
+msgid "The selected source range could not be read."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:11
+msgid "Hero"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:11
+msgid "Features"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:11
+msgid "Call to action"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:16
+msgid "Unknown library section."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:19
+msgid "Welcome to your next chapter"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:19
+msgid "Built around your needs"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:19
+msgid "Ready to get started?"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:20
+msgid "Add your content here."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:23
+msgid "Quality"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:23
+msgid "Support"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:23
+msgid "Simplicity"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:24
+msgid "Describe this benefit."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-section-library.php:28
+msgid "Learn more"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:57
+msgid "Settings"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:133
+msgid "Choose a provider and save first."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:181
+msgid "You are not allowed to change these settings."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:206
+msgid "The additional instructions were too long and have been shortened."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:229
+msgid "The base URL now points to a different server, so the saved key was removed. Enter the key for the new server."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:240
+msgid "That doesn’t look like an API key (it has spaces or unusual characters), so it wasn’t saved."
+msgstr ""
+
+#. translators: 1: "Primary" or "Fallback", 2: provider name.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:259
+#, php-format
+msgid "%1$s model: add an API key for %2$s below."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:260
+msgid "Primary"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:260
+msgid "Fallback"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:268
+msgid "Your other changes were saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:268
+msgid "Settings saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:286
+msgid "Primary model"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:286
+msgid "Used for every AI request."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:287
+msgid "Fallback model"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:287
+msgid "Used when the primary model fails, times out or declines. A different provider keeps working if one has an outage."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:290
+msgid "Key in wp-config.php"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:291
+msgid "Key saved"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:292
+msgid "Key needs re-entering"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:293
+msgid "No key"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:317
+msgid "AI model"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:318
+msgid "Used to create templates from a prompt and to normalize existing templates."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:327
+msgid "No fallback"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:327
+msgid "Choose a provider"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:329
+msgid "(no key yet)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:333
+msgid "Model"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:334
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:23
+msgid "Model id"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:336
+msgid "Load models"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:337
+msgid "Test"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:340
+msgid "Load models and Test use the saved settings: save first after changing a provider, key or model."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:346
+msgid "System prompt"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:347
+msgid "Every AI request starts with a built-in prompt that explains how to build pages for the Imajiner theme and editor: file locations, section markers, what stays editable, CSS scoping, design tokens and breakpoints. It lists the theme’s current tokens automatically."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:349
+msgid "Show the built-in prompt"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:350
+msgid "Built-in system prompt"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:354
+msgid "Additional instructions"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:356
+msgid "e.g. The brand voice is friendly and direct. Use British English. Every page ends with a contact call-to-action section."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:357
+msgid "Added after the built-in prompt for this site: brand voice, language, recurring sections, things to avoid."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:362
+msgid "Providers and API keys"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:363
+msgid "API keys are encrypted before they are stored and are never shown again. Add a key for each provider you choose above."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:379
+msgid "Base URL"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:379
+msgid "Endpoint"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:383
+msgid "The URL before /chat/completions. HTTPS required, except for servers on this machine (e.g. http://localhost:11434/v1 for Ollama)."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:387
+msgid "Uses Anthropic’s Messages API."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:393
+msgid "API key"
+msgstr ""
+
+#. translators: 1: masked key, 2: constant name.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:399
+#, php-format
+msgid "Set in wp-config.php (%1$s, %2$s)."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:404
+msgid "Leave empty to keep the saved key"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:404
+msgid "Paste the API key"
+msgstr ""
+
+#. translators: %s: masked key.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:409
+#, php-format
+msgid "Saved key: %s."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:411
+msgid "Remove"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:413
+msgid "The saved key can’t be decrypted (the site’s security keys changed). Enter it again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:415
+msgid "No key saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:418
+msgid "Get a key"
+msgstr ""
+
+#. translators: %s: constant name.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-settings.php:422
+#, php-format
+msgid "Or define %s in wp-config.php to keep it out of the database."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:18
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:194
+msgid "Imajiner Site Setup"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:24
+msgid "You are not allowed to create child themes on this site."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:27
+msgid "Create and network-enable client child themes through your network deployment workflow."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:35
+msgid "Use a unique lowercase site slug starting with a letter, using only letters, numbers and single hyphens (maximum 64 characters)."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:52
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:100
+msgid "That theme already exists. Setup never overwrites an existing theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:55
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:83
+msgid "The Imajiner filesystem service is unavailable."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:72
+msgid "Enter a child-theme name."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:76
+msgid "Enter a child-theme name of at most 150 characters."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:80
+msgid "Install the Imajiner parent theme before creating a client theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:93
+msgid "Setup for this slug is already in progress. Choose another slug or ask an administrator to check the setup lock."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:113
+msgid "The bundled child scaffold failed PHP syntax validation."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:154
+msgid "Confirm activation with permission to switch themes."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:162
+msgid "Choose an installed, available Imajiner client child theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:190
+msgid "You are not allowed to set up client themes."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:195
+msgid "Create a clean, independently versionable child theme. No templates, images or design tokens are copied from another site. Your current theme stays active until you confirm a switch."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:205
+msgid "The child theme is installed. Review it in Appearance → Themes before activation."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:211
+msgid "I confirm switching this site to the new child theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:212
+msgid "Activate child theme"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:219
+msgid "Child-theme name"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:220
+msgid "Site slug / theme folder"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:221
+msgid "Use a unique lowercase slug, for example client-site. Existing theme folders are never overwritten."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:222
+msgid "Create child theme (without activating)"
+msgstr ""
+
+#. translators: %s is the new child-theme folder.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-site-setup.php:250
+#, php-format
+msgid "Created %s. The active theme was not changed. Review it, then explicitly activate it with wp theme activate."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:20
+msgid "Template files and assignments updated. A revision was kept."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:30
+msgid "You are not allowed to manage child-theme templates."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:34
+msgid "The confirmation expired. Reload and try again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:37
+msgid "Confirm this file operation first."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:41
+msgid "Unknown file operation."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:48
+msgid "Template lifecycle storage is unavailable."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:55
+msgid "The child-theme template no longer exists."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:63
+msgid "The template or stylesheet changed. Reload before continuing."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:74
+msgid "That template name or stylesheet already exists."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:77
+msgid "Before renaming the template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:77
+msgid "Before deleting the template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:141
+msgid "Choose a valid child-theme template file name."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:147
+msgid "Only regular template files can be changed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:151
+msgid "Linked or out-of-scope theme paths cannot be changed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:164
+msgid "The operation failed and its stylesheet could not be restored. Recover the saved revision before continuing."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:205
+msgid "Rename or delete"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:211
+msgid "New file name (without .php)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:212
+msgid "PHP and paired CSS move together; page assignments and revisions follow the new name. Deleting resets page assignments to default. Existing parent-theme files may become visible again. Explicit PHP calls to a renamed part must be updated manually."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:213
+msgid "I confirm this file operation and have checked explicit part references."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:214
+msgid "Rename"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-manager.php:215
+msgid "Delete PHP and CSS"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:331
+msgid "Some changes point to elements that are not in the template. Reload the editor and try again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:359
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:366
+msgid "Unknown selected node."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:375
+msgid "Only static elements or sections can be replaced with safe literal HTML."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:390
+msgid "This PHP value is not an allowlisted text source."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:395
+msgid "Install ACF before choosing an ACF source."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:448
+msgid "This structural edit is not allowed. PHP blocks stay locked, and moves must stay within the same parent."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:576
+msgid "Text cannot be empty."
+msgstr ""
+
+#. translators: %s: attribute name.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-scanner.php:611
+#, php-format
+msgid "The %s attribute is set by PHP and cannot be edited here."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:36
+msgid "Imajiner revisions"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:125
+msgid "The template changed since the editor loaded it. Reload the editor to get the latest version."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:171
+msgid "A template with that file name already exists."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:234
+msgid "Revision not found."
+msgstr ""
+
+#. translators: 1: PHP error message, 2: line number.
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:256
+#, php-format
+msgid "PHP syntax error: %1$s on line %2$d."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:267
+msgid "Choose a template inside the active child theme’s imajiner folder."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:274
+msgid "Supply PHP and CSS source, each no larger than one megabyte."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:282
+msgid "File editing is disabled by site configuration."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:308
+msgid "Another filesystem operation is in progress. Retry shortly."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:374
+msgid "The template changed. Reload before continuing."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:388
+msgid "The template changed. Reload before deleting."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:390
+msgid "Before deleting a template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:404
+msgid "The template changed. Reload before renaming."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:412
+msgid "A file with that name already exists."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:415
+msgid "Before renaming a template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:454
+msgid "Invalid design token stylesheet."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/includes/class-imajiner-template-store.php:463
+msgid "Design tokens changed. Reload before accepting."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:11
+msgid "Build with AI"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:12
+msgid "Review the generated PHP and CSS before saving. New pages are saved as drafts. Normalize keeps the current assignments and a revision of the original files."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:13
+msgid "Configure AI models and keys"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:15
+msgid "Action"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:19
+#, php-format
+msgid "Normalize: %s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:22
+#, php-format
+msgid "Normalize part: %s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:26
+msgid "Page / template name"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:29
+msgid "Describe the page, or add instructions for Normalize"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:32
+msgid "Generate proposal"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:34
+msgid "Cancel background job"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:38
+msgid "Review before saving"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:39
+msgid "Static preview only: PHP, scripts, the site header and footer do not run here. Review the source for dynamic behavior. Proposals expire after one hour."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:41
+msgid "Contract warnings after generation"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:43
+msgid "Confirm and save"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/builder-ai.php:44
+#: wp-content/plugins/imajiner-editor/views/design-system.php:33
+msgid "Discard proposal"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:7
+msgid "Extract colors, typography and spacing from a prompt, screenshot or reference page. Review the proposal before saving it to the active child theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:8
+msgid "Accepted tokens live in assets/css/design-tokens.css and can be reused by AI in later sessions. Existing accepted tokens are preserved unless the proposal changes them."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:11
+msgid "Design instructions (optional)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:13
+msgid "Public HTTPS reference URL (optional)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:15
+msgid "Only a bounded HTML page and up to three same-origin stylesheets are read. Scripts are never executed and redirects are not followed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:16
+msgid "Choose or upload screenshot"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:17
+msgid "Remove screenshot"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:19
+msgid "PNG, JPEG or WebP, maximum 5 MB. The actual image bytes and extracted reference styles will be sent to your configured AI provider using its native image payload. The provider must support images."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:20
+msgid "Extract for review"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:21
+msgid "Cancel extraction"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:24
+msgid "Review proposal — nothing has been saved"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:29
+msgid "Current token CSS"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:30
+msgid "Proposed token CSS"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:32
+msgid "I reviewed the token differences and confirm saving them to this child theme."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:33
+msgid "Confirm and save tokens"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:36
+msgid "Private revision history"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:37
+msgid "Load revisions"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:40
+msgid "Review revision before restoring"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:42
+msgid "I confirm restoring this revision over the current design tokens."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/design-system.php:43
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1362
+msgid "Confirm restore"
+msgstr ""
+
+#. translators: %s: page title.
+#: wp-content/plugins/imajiner-editor/views/editor.php:24
+#, php-format
+msgid "Imajiner Editor: %s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:38
+msgid "Preview device"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:40
+msgid "Breakpoints"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:41
+msgid "Undo"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:42
+msgid "Redo"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:45
+msgid "History"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:48
+msgid "View page"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:49
+msgid "Discard"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:50
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:350
+msgid "Save"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:56
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:391
+msgid "Layers"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:57
+msgid "Add blank section"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:59
+msgid "Section library"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:61
+msgid "Choose a section…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:73
+msgid "Page preview"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/editor.php:78
+msgid "Properties"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/views/part-preview.php:23
+msgid "Page content"
+msgstr ""
+
+#: wp-content/themes/imajiner/header.php:44
+msgid "Menu"
+msgstr ""
+
+#: wp-content/themes/imajiner/inc/locations.php:32
+msgid "Front page"
+msgstr ""
+
+#: wp-content/themes/imajiner/inc/locations.php:33
+msgid "Blog posts page"
+msgstr ""
+
+#. translators: 1: taxonomy label, 2: term name.
+#: wp-content/themes/imajiner/inc/locations.php:58
+#, php-format
+msgid "%1$s: %2$s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:28
+msgid "Save the page to open its template in the Imajiner Editor."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:35
+#, js-format
+msgid "Uses “%s”, assigned to this post type."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:36
+#, js-format
+msgid "Uses “%s”."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:41
+msgid "Open Imajiner Editor"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/block-editor.js:46
+msgid "Choose an Imajiner template under Template, or assign a single template to this post type."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:52
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:42
+msgid "Request failed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:60
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:66
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:75
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:155
+msgid "Job cancelled. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:62
+msgid "AI job stopped. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:63
+msgid "Queued for background generation…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:63
+msgid "Generating and validating in the background…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:128
+msgid "Proposal discarded. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:136
+msgid "Generating and validating… This may take a couple of minutes."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:143
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:86
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:125
+msgid "Before"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:144
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:86
+msgid "After"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:145
+msgid "No contract warnings."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:147
+msgid "Proposal ready. Nothing has been saved yet."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/builder-ai.js:159
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1277
+msgid "Saving…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:63
+msgid "Aa — Sample"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:86
+msgid "Token"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:100
+msgid "Not set"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:112
+msgid "Extracting for review. No files are being saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:121
+msgid "Extraction stopped. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:122
+msgid "Extracting in the background…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:137
+msgid "Review the swatches, typography and raw CSS differences. Confirm only if you want to save."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:147
+msgid "Extraction cancelled. Nothing was saved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:152
+msgid "Design-system screenshot"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:152
+msgid "Use screenshot"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:156
+msgid "Screenshot selected"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:180
+msgid "Design tokens saved to the child theme. A private revision was retained."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:192
+msgid "No saved revisions yet."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:197
+msgid "Review revision"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/design-system.js:223
+msgid "Design-system revision restored."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:14
+msgid "Edit selection with AI"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:21
+msgid "Edit selected section or element with AI"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:23
+msgid "Only static HTML is editable. Review the replacement and scoped CSS. Nothing is saved until you confirm."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:28
+msgid "Describe the selected edit"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:41
+msgid "Generate replacement"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:42
+msgid "Confirm and save selected edit"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:43
+msgid "Cancel job"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:44
+msgid "Discard / close"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:63
+msgid "Describe your change, then generate a proposal."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:79
+msgid "AI request failed."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:100
+#, js-format
+msgid "%s HTML / CSS"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:108
+msgid "Save or discard pending edits, select a static node, and enter instructions."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:126
+msgid "Proposed replacement"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:128
+msgid "Validated proposal ready. Review before confirming. PHP is never executed in this preview."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:131
+msgid "AI job stopped."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:132
+msgid "Working in the background…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor-ai.js:141
+msgid "The editor changed. Discard this proposal and generate again."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:55
+msgid "Static"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:55
+msgid "Static HTML. Edit it below."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:56
+msgid "Dynamic"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:56
+msgid "The value comes from PHP, so it can’t be edited as text."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:57
+msgid "Structure"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:57
+msgid "A PHP loop or condition. Edit the elements inside it."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:58
+msgid "Locked"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:58
+msgid "PHP the visual editor leaves alone."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:67
+msgid "Typography"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:69
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:76
+msgid "Color"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:70
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:86
+msgid "Size"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:71
+msgid "Weight"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:72
+msgid "Line height"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:73
+msgid "Align"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:76
+msgid "Background"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:78
+msgid "Spacing"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:80
+msgid "Padding"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:81
+msgid "Margin"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:82
+msgid "Gap"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:88
+msgid "Width"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:89
+msgid "Max width"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:93
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:96
+msgid "Border"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:95
+msgid "Radius"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:350
+#, js-format
+msgid "Save (%d)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:372
+msgid "Section"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:380
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1103
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1122
+msgid "Text"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:413
+msgid "Expand or collapse"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:515
+#, js-format
+msgid "%d template contract warning"
+msgid_plural "%d template contract warnings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:517
+msgid "Normalize with AI"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:543
+msgid "Element to add"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:544
+msgid "Heading"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:544
+msgid "Paragraph"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:544
+msgid "Link"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:544
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:745
+msgid "Image"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:544
+msgid "Container"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:549
+msgid "Add element"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:553
+msgid "Duplicate"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:557
+msgid "Confirm delete"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:561
+msgid "Delete"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:566
+msgid "Move up"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:566
+msgid "Move down"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:571
+msgid "This container includes PHP. Edit its static children; the container cannot be deleted, duplicated or moved."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:627
+msgid "Unsaved changes staged"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:700
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:701
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:909
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:910
+#, js-format
+msgid "Remove %s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:713
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:922
+msgid "Value"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:734
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:941
+msgid "Add"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:747
+msgid "Replace image"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:747
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:753
+msgid "Choose image"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:756
+msgid "Use image"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:862
+msgid "Pick a color"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:921
+msgid "Property"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:947
+msgid "Other properties"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:975
+msgid "Styles are written for a class. Give this element one to style it."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:976
+msgid "Add class"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:982
+msgid "This element’s class is set by PHP, so it can’t be styled here."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1015
+msgid "Editing"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1024
+msgid "State"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1025
+msgid "Normal"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1025
+msgid "Hover"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1025
+msgid "Keyboard focus"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1026
+msgid "Rule context"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1027
+msgid "Class and active breakpoint"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1029
+msgid "Editing this entire rule affects every selector in its list."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1032
+msgid "Styles apply to"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1034
+#, js-format
+msgid "%d element in this template uses this class."
+msgid_plural "%d elements in this template use this class."
+msgstr[0] ""
+msgstr[1] ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1034
+msgid "Only this element uses this class."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1059
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1119
+msgid "Content"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1060
+msgid "Style"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1092
+msgid "Repeated by a loop: a change here applies to every item."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1113
+msgid "Attributes"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1114
+msgid "None"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1122
+msgid "Double-click text in the preview to edit this segment without changing its markup."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1126
+msgid "Condition"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1126
+msgid "Detail"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1128
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1359
+msgid "PHP"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1130
+msgid "Post title"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1130
+msgid "Custom field"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1130
+msgid "ACF field (requires ACF)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1131
+msgid "Field key"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1132
+msgid "Dynamic source"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1132
+msgid "Stage source change"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1132
+msgid "Only isolated title or escaped field calls can change. Other PHP stays read-only."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1141
+msgid "Select an element in the preview or in the layers panel."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1240
+#, js-format
+msgid "Request failed (%d)."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1280
+msgid "Saved"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1296
+msgid "Changes discarded"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1306
+msgid "Loading…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1317
+msgid "No earlier versions yet. One is kept every time you save."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1322
+msgid "Earlier versions of this template"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1327
+msgid "Restore"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1347
+msgid "Save or discard your changes before restoring."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1355
+msgid "Template changed. Reload before restoring."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1359
+msgid "CSS"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1360
+msgid "No differences."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1370
+msgid "Restoring…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1373
+#, js-format
+msgid "Restored version from %s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1414
+msgid "Editing lock acquired"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1420
+msgid "Save or discard before changing breakpoints."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1423
+msgid "Breakpoint settings JSON"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1424
+msgid "Site breakpoints"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1424
+msgid "Edit labels, preview widths and media conditions. Keep the base breakpoint first, then wider to narrower. Filters still apply."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1431
+msgid "Save breakpoints"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1431
+msgid "Cancel"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1438
+msgid "Wait for the current edit to finish."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1445
+msgid "Wait for the editor lock and current edit."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1446
+msgid "Select a static element or section first."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/editor.js:1447
+msgid "The proposal selection changed. Generate a new proposal."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/preview.js:53
+msgid "Edit text"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:31
+msgid "Choose a provider first."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:44
+#, js-format
+msgid "%d models loaded. Start typing in the model field to pick one."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:46
+msgid "Could not load models."
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:54
+msgid "Testing…"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:57
+#, js-format
+msgid "Connected to %1$s. It replied: %2$s"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:57
+msgid "(empty reply)"
+msgstr ""
+
+#: wp-content/plugins/imajiner-editor/assets/js/settings.js:59
+msgid "Connection failed."
+msgstr ""
+
+#. translators: %s is the parent navigation link's text.
+#: wp-content/themes/imajiner/assets/js/navigation.js:30
+#, js-format
+msgid "Toggle submenu for %s"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Background"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Surface"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Text"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Muted"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Border"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Primary"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Color name"
+msgid "Primary contrast"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font family name"
+msgid "Body"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font family name"
+msgid "Heading"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font size name"
+msgid "Small"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font size name"
+msgid "Base"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font size name"
+msgid "Large"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font size name"
+msgid "Extra large"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font size name"
+msgid "Heading"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Font size name"
+msgid "Display"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "1"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "2"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "3"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "4"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "5"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "6"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "7"
+msgstr ""
+
+#: wp-content/themes/imajiner/theme.json
+msgctxt "Space size name"
+msgid "8"
+msgstr ""

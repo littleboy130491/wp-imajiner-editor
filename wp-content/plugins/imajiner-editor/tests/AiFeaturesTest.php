@@ -157,7 +157,7 @@ final class AiFeaturesTest extends TestCase {
 
 	public function test_generation_route_is_background_and_normalization_keeps_confirmation(): void {
 		$this->mode = 'generate';
-		$response = $this->request( 'generate', array( 'key' => $this->slug ) );
+		$response = $this->request( 'generate', array( 'key' => $this->slug, 'async' => true ) );
 		self::assertSame( 202, $response->get_status() );
 		self::assertCount( 0, $this->calls );
 		$id = $response->get_data()['id'];

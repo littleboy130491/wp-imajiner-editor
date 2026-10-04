@@ -515,14 +515,14 @@ HTML;
 	public static function render() {
 		if ( Imajiner_Generation::can_generate() ) {
 			wp_enqueue_script( 'imajiner-builder-ai', IMAJINER_EDITOR_URL . 'assets/js/builder-ai.js', array( 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
+			wp_set_script_translations( 'imajiner-builder-ai', 'imajiner-editor', IMAJINER_EDITOR_DIR . 'languages' );
 			wp_localize_script(
 				'imajiner-builder-ai',
 				'imajinerBuilderAI',
 				array(
 					'restUrl'  => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/ai/' ),
 					'nonce'    => wp_create_nonce( 'wp_rest' ),
-					'baseCss'  => get_template_directory_uri() . '/assets/css/base.css',
-					'childCss' => get_stylesheet_uri(),
+					'stylesheets' => Imajiner_Editor::design_stylesheet_urls(),
 				)
 			);
 		}

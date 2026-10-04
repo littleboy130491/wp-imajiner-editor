@@ -14,7 +14,7 @@ class WP_Filesystem_imjtemplatefault extends WP_Filesystem_Direct {
 	public static $failed_writes = array();
 
 	public function move( $source, $destination, $overwrite = false ) {
-		return in_array( $destination, self::$failed_moves, true ) ? false : parent::move( $source, $destination, $overwrite );
+		return in_array( $destination, self::$failed_moves, true ) || ( 0 === strpos( basename( $source ), '.imj-' ) && in_array( $destination, self::$failed_writes, true ) ) ? false : parent::move( $source, $destination, $overwrite );
 	}
 
 	public function delete( $file, $recursive = false, $type = false ) {

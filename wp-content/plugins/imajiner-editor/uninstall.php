@@ -35,7 +35,7 @@ function imajiner_editor_remove_preview_cache() {
 if ( get_option( 'imajiner_editor_remove_data', false ) ) {
 	imajiner_editor_remove_preview_cache();
 	for ( $batch = 0; $batch < 100; ++$batch ) {
-		$ids = get_posts( array( 'post_type' => 'imajiner_revision', 'post_status' => 'any', 'posts_per_page' => 100, 'fields' => 'ids' ) );
+		$ids = get_posts( array( 'post_type' => array( 'imajiner_revision', 'imajiner_design_rev', 'imajiner_ai_usage' ), 'post_status' => 'any', 'posts_per_page' => 100, 'fields' => 'ids' ) );
 		if ( ! $ids ) {
 			break;
 		}
@@ -44,6 +44,25 @@ if ( get_option( 'imajiner_editor_remove_data', false ) ) {
 		}
 	}
 }
+
+for ( $batch = 0; $batch < 100; ++$batch ) {
+	$ids = get_posts( array( 'post_type' => 'imajiner_ai_job', 'post_status' => 'any', 'posts_per_page' => 100, 'fields' => 'ids' ) );
+	if ( ! $ids ) {
+		break;
+	}
+	foreach ( $ids as $id ) {
+		wp_delete_post( $id, true );
+	}
+}
+global $wpdb;
+foreach ( array( '_transient_imajiner_ai_', '_transient_timeout_imajiner_ai_', '_transient_imajiner_design_', '_transient_timeout_imajiner_design_', '_transient_imajiner_stage_', '_transient_timeout_imajiner_stage_', 'imajiner_lock_', 'imajiner_design_lock_', '_imajiner_store_lock_', 'imajiner_ai_worker_' ) as $prefix ) {
+	$names = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT 10000", $wpdb->esc_like( $prefix ) . '%' ) );
+	foreach ( $names as $name ) {
+		delete_option( $name );
+	}
+}
+wp_unschedule_hook( 'imajiner_ai_run_job' );
+wp_unschedule_hook( 'imajiner_ai_expire_job' );
 
 delete_metadata( 'user', 0, '_imajiner_fs_credentials', '', true );
 wp_unschedule_hook( 'imajiner_fs_expire' );

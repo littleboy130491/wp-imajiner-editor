@@ -103,9 +103,9 @@ class Imajiner_Section_AI {
 		$data = json_decode( $reply, true );
 		$warnings = array();
 		if ( ! is_array( $data ) || ! isset( $data['html'], $data['css'] ) || ! is_string( $data['html'] ) || ! is_string( $data['css'] ) || strlen( $data['html'] ) + strlen( $data['css'] ) > 1000000 ) {
-			$warnings[] = 'Return JSON with string fields html and css.';
+			$warnings[] = __( 'Return JSON with string fields html and css.', 'imajiner-editor' );
 		} elseif ( false !== strpos( $data['html'], '<?' ) || false !== strpos( $data['html'], 'imj-php:' ) ) {
-			$warnings[] = 'PHP and scanner placeholders are not allowed in visual AI edits.';
+			$warnings[] = __( 'PHP and scanner placeholders are not allowed in visual AI edits.', 'imajiner-editor' );
 		} else {
 			$scanner = new Imajiner_Template_Scanner( $data['html'], array( 'require_sections' => false ) );
 			$structure = $scanner->get_structure();
@@ -113,22 +113,22 @@ class Imajiner_Section_AI {
 			$root = 1 === count( $structure['tree'] ) ? $structure['tree'][0] : null;
 			$original = $context['range']['node'];
 			if ( ! $root || $root->type !== $original->type || ( 'section' === $original->type && $root->name !== $original->name ) ) {
-				$warnings[] = 'Keep exactly one root of the original kind and the original section name.';
+				$warnings[] = __( 'Keep exactly one root of the original kind and the original section name.', 'imajiner-editor' );
 			}
 			$element = $root && 'section' === $root->type && 1 === count( $root->children ) ? $root->children[0] : $root;
 			$attrs = $element && isset( $element->attrs ) ? (array) $element->attrs : array();
 			if ( ! $element || 'element' !== $element->type || ! in_array( $anchor, preg_split( '/\s+/', isset( $attrs['class'] ) ? $attrs['class'] : '' ), true ) ) {
-				$warnings[] = 'The replacement needs exactly one root element with the requested scope class.';
+				$warnings[] = __( 'The replacement needs exactly one root element with the requested scope class.', 'imajiner-editor' );
 			}
 			$processor = new WP_HTML_Tag_Processor( $data['html'] );
 			while ( $processor->next_tag() ) {
 				if ( in_array( $processor->get_tag(), array( 'SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'BASE', 'SVG', 'MATH' ), true ) || null !== $processor->get_attribute( 'style' ) || $processor->get_attribute_names_with_prefix( 'on' ) ) {
-					$warnings[] = 'Scripts, embedded documents, event handlers and inline styles are not allowed.';
+					$warnings[] = __( 'Scripts, embedded documents, event handlers and inline styles are not allowed.', 'imajiner-editor' );
 				}
 				foreach ( array( 'href', 'src', 'action', 'formaction', 'xlink:href', 'poster', 'background', 'cite', 'longdesc' ) as $attribute ) {
 					$value = $processor->get_attribute( $attribute );
 					if ( is_string( $value ) && wp_kses_bad_protocol( $value, wp_allowed_protocols() ) !== trim( $value ) ) {
-						$warnings[] = 'Use safe media and link URLs.';
+						$warnings[] = __( 'Use safe media and link URLs.', 'imajiner-editor' );
 					}
 				}
 			}
@@ -142,7 +142,7 @@ class Imajiner_Section_AI {
 			$original_scanner = new Imajiner_Template_Scanner( $context['files']['php'] );
 			$warnings = array_merge( $warnings, $after->get_structure()['warnings'] );
 			if ( ! $after->is_lossless() || $original_scanner->get_php_sources() !== $after->get_php_sources() ) {
-				$warnings[] = 'All PHP outside the selection must stay byte-identical.';
+				$warnings[] = __( 'All PHP outside the selection must stay byte-identical.', 'imajiner-editor' );
 			}
 		}
 		if ( $warnings ) {

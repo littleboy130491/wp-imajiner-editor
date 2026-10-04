@@ -2,7 +2,7 @@
 ( function ( config, wp ) {
 	'use strict';
 	if ( ! config || ! wp || ! wp.i18n || ! window.imajinerEditor ) return;
-	const { __ } = wp.i18n;
+	const { __, sprintf } = wp.i18n;
 	const editor = window.imajinerEditor;
 	let busy = false;
 	let job = 0;
@@ -92,12 +92,12 @@
 		frame.setAttribute( 'sandbox', '' );
 		frame.style.cssText = 'width:100%;height:220px;background:white';
 		frame.srcdoc = '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\';style-src \'unsafe-inline\' https: http:;img-src https: http:;font-src https: http:">' +
-			'<link rel="stylesheet" href="' + escape( config.baseCss || '' ) + '"><link rel="stylesheet" href="' + escape( config.childCss || '' ) + '"><style>' + files.css.replace( /<\/style/gi, '<\\/style' ) + '</style></head><body class="' + escape( scope.slice( 1 ) ) + '">' + files.html + '</body></html>';
+			config.stylesheets.map( ( url ) => '<link rel="stylesheet" href="' + escape( url ) + '">' ).join( '' ) + '<style>' + files.css.replace( /<\/style/gi, '<\\/style' ) + '</style></head><body class="' + escape( scope.slice( 1 ) ) + '">' + files.html + '</body></html>';
 		const source = document.createElement( 'textarea' );
 		source.readOnly = true;
 		source.rows = 12;
 		source.style.width = '100%';
-		source.setAttribute( 'aria-label', label + ' HTML / CSS' );
+		source.setAttribute( 'aria-label', sprintf( __( '%s HTML / CSS', 'imajiner-editor' ), label ) );
 		source.value = files.html + '\n\n' + files.css;
 		column.append( heading, frame, source );
 		review.append( column );

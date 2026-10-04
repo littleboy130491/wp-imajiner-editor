@@ -21,7 +21,7 @@ class Imajiner_Generation {
 	}
 
 	public static function enqueue( WP_REST_Request $request ) {
-		return self::generate( $request, true );
+		return self::generate( $request, true === $request['async'] );
 	}
 
 	public static function handle_job( $unused, $payload, $id ) {
@@ -43,6 +43,7 @@ class Imajiner_Generation {
 					'callback'            => array( __CLASS__, 'generate' === $action ? 'enqueue' : $action ),
 					'permission_callback' => array( __CLASS__, 'can_generate' ),
 					'args'                => 'generate' === $action ? array(
+						'async'  => array( 'type' => 'boolean', 'default' => false ),
 						'prompt' => array( 'type' => 'string', 'default' => '', 'maxLength' => 20000 ),
 						'name'   => array( 'type' => 'string', 'default' => '', 'maxLength' => 200 ),
 						'key'    => array( 'type' => 'string', 'default' => '', 'pattern' => '^(?:parts/)?[a-z0-9_-]*$' ),
@@ -161,6 +162,9 @@ class Imajiner_Generation {
 	public static function accept( WP_REST_Request $request ) {
 		if ( ! self::can_generate() ) {
 			return new WP_Error( 'imajiner_forbidden', __( 'You cannot edit templates.', 'imajiner-editor' ), array( 'status' => 403 ) );
+		}
+		if ( $request->has_param( 'confirm' ) && true !== $request['confirm'] ) {
+			return new WP_Error( 'imajiner_confirm', __( 'Explicitly accept the reviewed proposal before saving.', 'imajiner-editor' ), array( 'status' => 400 ) );
 		}
 		$lock = self::proposal_key( $request['proposal'] ) . '_accept';
 		if ( ! add_option( $lock, time() + HOUR_IN_SECONDS, '', false ) ) {

@@ -433,7 +433,7 @@ final class DesignSystemTest extends TestCase {
 		$body = json_decode( $this->requests[0]['args']['body'], true );
 		$content = $body['messages'][1]['content'];
 		self::assertSame( 'image_url', $content[1]['type'] );
-		self::assertSame( wp_get_attachment_url( $id ), $content[1]['image_url']['url'] );
+		self::assertSame( 'data:image/png;base64,' . base64_encode( file_get_contents( get_attached_file( $id ) ) ), $content[1]['image_url']['url'] );
 		self::assertStringNotContainsString( get_attached_file( $id ), $this->requests[0]['args']['body'] );
 	}
 

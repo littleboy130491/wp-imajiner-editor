@@ -47,6 +47,27 @@ class Imajiner_Site_Setup {
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
 		}
+		$path = wp_get_theme( 'imajiner' )->get_theme_root() . '/' . $slug;
+		if ( file_exists( $path ) || is_link( $path ) || wp_get_theme( $slug )->exists() ) {
+			return new WP_Error( 'imajiner_setup_exists', __( 'That theme already exists. Setup never overwrites an existing theme.', 'imajiner-editor' ) );
+		}
+		if ( ! class_exists( 'Imajiner_Filesystem' ) ) {
+			return new WP_Error( 'imajiner_setup_filesystem', __( 'The Imajiner filesystem service is unavailable.', 'imajiner-editor' ) );
+		}
+		return Imajiner_Filesystem::scaffold( $slug, function () use ( $slug, $name ) {
+			return self::create_scoped( $slug, $name );
+		} );
+	}
+
+	private static function create_scoped( $slug, $name ) {
+		$allowed = self::permission();
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
+		$valid = self::validate_slug( $slug );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
 		if ( ! is_string( $name ) ) {
 			return new WP_Error( 'imajiner_setup_name', __( 'Enter a child-theme name.', 'imajiner-editor' ) );
 		}

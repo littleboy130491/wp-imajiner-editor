@@ -10,6 +10,7 @@
 	let attachment = 0;
 	let restore = null;
 	let busy = false;
+	let job = 0;
 
 	function status(message, error) {
 		el('status').textContent = message;
@@ -25,10 +26,12 @@
 		el('media').disabled = busy;
 		el('remove').disabled = busy;
 		el('discard').disabled = busy;
+		el('stop').hidden = !busy || !job;
 	}
 
-	async function api(action, data) {
-		const response = await fetch(imajinerDesignSystem.api + action, {
+	async function api(action, data, jobs = false) {
+		const base = jobs ? imajinerDesignSystem.api.replace(/design-system\/$/, 'ai/') : imajinerDesignSystem.api;
+		const response = await fetch(base + action, {
 			method: data ? 'POST' : 'GET', credentials: 'same-origin',
 			headers: { 'X-WP-Nonce': imajinerDesignSystem.nonce, 'Content-Type': 'application/json' },
 			body: data ? JSON.stringify(data) : undefined
@@ -108,7 +111,18 @@
 		setBusy(true);
 		status(__('Extracting for review. No files are being saved.', 'imajiner-editor'));
 		try {
-			proposal = await api('extract', { prompt: el('prompt').value, url: el('url').value.trim(), attachment, hash: state.hash });
+			const queued = await api('extract', { async: true, prompt: el('prompt').value, url: el('url').value.trim(), attachment, hash: state.hash });
+			job = queued.id;
+			setBusy(true);
+			while (job === queued.id) {
+				const current = await api('jobs/' + queued.id, null, true);
+				if (job !== queued.id) break;
+				if (current.state === 'complete') { proposal = current.result; break; }
+				if (current.state === 'failed' || current.state === 'cancelled') throw new Error(current.message || __('Extraction stopped. Nothing was saved.', 'imajiner-editor'));
+				status(__('Extracting in the background…', 'imajiner-editor') + ' ' + current.progress + '%');
+				await new Promise(resolve => setTimeout(resolve, 1500));
+			}
+			if (!proposal) return;
 			el('summary').textContent = proposal.summary;
 			el('warnings').replaceChildren();
 			proposal.warnings.forEach(warning => {
@@ -122,7 +136,16 @@
 			el('review').hidden = false;
 			status(__('Review the swatches, typography and raw CSS differences. Confirm only if you want to save.', 'imajiner-editor'));
 		} catch (error) { status(error.message, true); }
-		finally { setBusy(false); }
+		finally { job = 0; setBusy(false); }
+	});
+
+	el('stop').addEventListener('click', async () => {
+		if (!job) return;
+		try {
+			await api('jobs/' + job + '/cancel', {}, true);
+			job = 0;
+			status(__('Extraction cancelled. Nothing was saved.', 'imajiner-editor'));
+		} catch (error) { status(error.message, true); }
 	});
 
 	el('media').addEventListener('click', () => {

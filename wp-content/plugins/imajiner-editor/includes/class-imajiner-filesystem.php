@@ -19,28 +19,52 @@ class Imajiner_Atomic_Direct_Filesystem extends WP_Filesystem_Direct {
 class Imajiner_Filesystem {
 	private static $client;
 	private static $context;
+	private static $method;
+	private static $scaffold;
+
+	/** Scope inactive-child writes to a newly reserved client slug, never the parent. */
+	public static function scaffold( $slug, $callback ) {
+		if ( ! current_user_can( 'install_themes' ) || ! current_user_can( 'edit_themes' ) || ! wp_is_file_mod_allowed( 'imajiner_child_theme' ) || is_multisite() || is_wp_error( Imajiner_Site_Setup::validate_slug( $slug ) ) || self::$scaffold ) {
+			return self::path_error();
+		}
+		$root = wp_get_theme( 'imajiner' )->get_theme_root();
+		$path = wp_normalize_path( $root . '/' . $slug );
+		if ( file_exists( $path ) || is_link( $path ) ) {
+			return self::path_error();
+		}
+		self::$scaffold = $path;
+		try {
+			return call_user_func( $callback );
+		} finally {
+			self::$scaffold = null;
+		}
+	}
 
 	/** Connect lazily; never downgrade a configured remote transport. */
 	public static function init() {
-		$context = get_current_user_id() . '|' . get_stylesheet() . '|' . wp_get_session_token();
-		if ( self::$client && self::$context === $context ) {
-			return true;
-		}
-		self::$client = null;
 		$credentials = class_exists( 'Imajiner_Filesystem_Credentials' ) ? Imajiner_Filesystem_Credentials::credentials() : array();
 		$method = get_filesystem_method( $credentials, WP_CONTENT_DIR );
-		if ( ! in_array( $method, array( 'direct', 'ftpext', 'ftpsockets', 'ssh2' ), true ) ) {
+		$context = get_current_user_id() . '|' . get_stylesheet() . '|' . wp_get_session_token();
+		if ( self::$client && self::$context === $context ) {
+			if ( null === self::$method || self::$method === $method ) {
+				return true;
+			}
+		}
+		self::$client = null;
+		$class = 'WP_Filesystem_' . $method;
+		if ( ! in_array( $method, array( 'direct', 'ftpext', 'ftpsockets', 'ssh2' ), true ) && ! is_subclass_of( $class, 'WP_Filesystem_Base' ) ) {
 			return self::error( 'imajiner_filesystem_method' );
 		}
 		if ( ! @WP_Filesystem( $credentials, WP_CONTENT_DIR ) ) {
 			return self::error( 'imajiner_filesystem_credentials' );
 		}
 		global $wp_filesystem;
-		if ( $wp_filesystem->method !== $method ) {
+		if ( $wp_filesystem->method !== $method && get_class( $wp_filesystem ) !== $class ) {
 			return self::error( 'imajiner_filesystem_method' );
 		}
-		self::$client = 'direct' === $method ? new Imajiner_Atomic_Direct_Filesystem( null ) : $wp_filesystem;
+		self::$client = 'WP_Filesystem_Direct' === get_class( $wp_filesystem ) ? new Imajiner_Atomic_Direct_Filesystem( null ) : $wp_filesystem;
 		self::$context = $context;
+		self::$method = $method;
 		return true;
 	}
 
@@ -49,7 +73,7 @@ class Imajiner_Filesystem {
 	}
 
 	/** Validate local names before translating into a transport's content root. */
-	public static function validate_path( $path ) {
+	public static function validate_path( $path, $read_only = false ) {
 		if ( ! is_string( $path ) || '' === $path || preg_match( '~[\x00-\x1f\\\\]|(?:^|/)\.{1,2}(?:/|$)|://~', $path ) ) {
 			return self::path_error();
 		}
@@ -60,7 +84,10 @@ class Imajiner_Filesystem {
 		$preview = untrailingslashit( wp_normalize_path( $uploads['basedir'] ) ) . '/imajiner/preview';
 		$in_child = is_child_theme() && ( $path === $child || 0 === strpos( $path, $child . '/' ) );
 		$in_preview = $path === $preview || 0 === strpos( $path, $preview . '/' );
-		if ( ( ! $in_child && ! $in_preview ) || 0 !== strpos( $path, $content . '/' ) ) {
+		$parent = untrailingslashit( wp_normalize_path( wp_get_theme( 'imajiner' )->get_stylesheet_directory() ) );
+		$in_parent = $read_only && ( $path === $parent || 0 === strpos( $path, $parent . '/' ) );
+		$in_scaffold = self::$scaffold && ( $path === self::$scaffold || 0 === strpos( $path, self::$scaffold . '/' ) );
+		if ( ( ! $in_child && ! $in_preview && ! $in_parent && ! $in_scaffold ) || 0 !== strpos( $path, $content . '/' ) ) {
 			return self::path_error();
 		}
 		// Check each ancestor, including dangling links; realpath alone misses these.
@@ -78,8 +105,8 @@ class Imajiner_Filesystem {
 		return new WP_Error( 'imajiner_path', __( 'The file must be inside the active child theme or the private preview cache, without symbolic links.', 'imajiner-editor' ), array( 'status' => 400 ) );
 	}
 
-	private static function path( $path ) {
-		$path = self::validate_path( $path );
+	private static function path( $path, $read_only = false ) {
+		$path = self::validate_path( $path, $read_only );
 		if ( is_wp_error( $path ) ) {
 			return $path;
 		}
@@ -147,7 +174,7 @@ class Imajiner_Filesystem {
 	}
 
 	public static function read( $path ) {
-		$path = self::path( $path );
+		$path = self::path( $path, true );
 		if ( is_wp_error( $path ) ) {
 			return $path;
 		}
@@ -264,7 +291,7 @@ class Imajiner_Filesystem {
 			return $mapped;
 		}
 		if ( ! self::$client->is_file( $mapped ) ) {
-			return self::error();
+			return self::$client->is_dir( $mapped ) && self::$client->rmdir( $mapped, false ) ? true : self::error();
 		}
 		$result = self::$client->delete( $mapped, false, 'f' );
 		self::invalidate( $path );

@@ -285,6 +285,13 @@ class Imajiner_Template_Store {
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
 		}
+		if ( $template ) {
+			$key = preg_replace( '~\.php$~', '', substr( wp_normalize_path( $path ), strlen( trailingslashit( wp_normalize_path( get_stylesheet_directory() ) ) . 'imajiner/' ) ) );
+			$editing = Imajiner_Editor_Locks::check( $key );
+			if ( is_wp_error( $editing ) ) {
+				return $editing;
+			}
+		}
 		$ready = Imajiner_Filesystem::init();
 		if ( is_wp_error( $ready ) ) {
 			return $ready;
@@ -354,6 +361,20 @@ class Imajiner_Template_Store {
 		}
 		wp_clean_themes_cache( false );
 		return true;
+	}
+
+	/** Delete a PHP/CSS pair only when the caller's hash is current. */
+	public static function snapshot( $path, $base_hash, $note ) {
+		return self::locked( $path, function () use ( $path, $base_hash, $note ) {
+			$current = self::read( $path );
+			if ( is_wp_error( $current ) ) {
+				return $current;
+			}
+			if ( self::hash( $current ) !== $base_hash ) {
+				return new WP_Error( 'imajiner_conflict', __( 'The template changed. Reload before continuing.', 'imajiner-editor' ), array( 'status' => 409 ) );
+			}
+			return self::add_revision( $path, $current, $note );
+		} );
 	}
 
 	/** Delete a PHP/CSS pair only when the caller's hash is current. */

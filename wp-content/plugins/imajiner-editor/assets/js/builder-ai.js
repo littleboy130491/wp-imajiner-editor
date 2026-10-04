@@ -91,7 +91,7 @@
 		frame.setAttribute( 'sandbox', '' );
 		frame.style.cssText = 'width:100%;height:300px;border:1px solid #c3c4c7;background:white';
 		frame.srcdoc = '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\' http: https:; img-src http: https: data:; font-src http: https:;">'
-			+ '<link rel="stylesheet" href="' + escape( config.baseCss ) + '"><link rel="stylesheet" href="' + escape( config.childCss ) + '">'
+			+ config.stylesheets.map( ( url ) => '<link rel="stylesheet" href="' + escape( url ) + '">' ).join( '' )
 			+ '<style>' + files.css.replace( /<\/style/gi, '<\\/style' ) + '</style></head><body class="' + escape( scope.slice( 1 ) ) + '"><main>' + markup + '</main></body></html>';
 		column.append( frame );
 		const warningList = document.createElement( 'ul' );
@@ -135,7 +135,7 @@
 		setBusy( true );
 		status.textContent = __( 'Generating and validating… This may take a couple of minutes.', 'imajiner-editor' );
 		try {
-			const queued = await request( 'generate', { key: key.value, name: name.value, prompt: prompt.value } );
+			const queued = await request( 'generate', { async: true, key: key.value, name: name.value, prompt: prompt.value } );
 			job = queued.id;
 			setBusy( true );
 			const result = await poll( job );
@@ -158,7 +158,7 @@
 		setBusy( true );
 		status.textContent = __( 'Saving…', 'imajiner-editor' );
 		try {
-			const result = await request( 'accept', { proposal } );
+			const result = await request( 'accept', { proposal, confirm: true } );
 			window.location.assign( result.url );
 		} catch ( error ) {
 			status.textContent = error.message;
