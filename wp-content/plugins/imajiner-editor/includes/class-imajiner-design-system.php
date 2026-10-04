@@ -214,6 +214,30 @@ class Imajiner_Design_System {
 		return $tokens ? $prompt . "\n\n## Accepted child-theme design tokens\nUse var(--imj-*) from this accepted CSS source; do not replace these values without a new explicit design-system acceptance.\n" . wp_json_encode( $tokens ) : $prompt;
 	}
 
+	private static function public_address( $ip ) {
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+			return false;
+		}
+		$packed = inet_pton( $ip );
+		if ( 16 === strlen( $packed ) && 0x20 !== ( ord( $packed[0] ) & 0xe0 ) ) {
+			return false;
+		}
+		// PHP's reserved-range flag omits several non-global IANA special-use ranges.
+		$ranges = 4 === strlen( $packed )
+			? array( '100.64.0.0/10', '192.0.0.0/24', '192.0.2.0/24', '192.88.99.0/24', '198.18.0.0/15', '198.51.100.0/24', '203.0.113.0/24', '224.0.0.0/4' )
+			: array( '2001::/23', '2001:db8::/32', '2002::/16', '3ffe::/16', '3fff::/20' );
+		foreach ( $ranges as $range ) {
+			list( $network, $bits ) = explode( '/', $range );
+			$network = inet_pton( $network );
+			$bytes = intdiv( (int) $bits, 8 );
+			$remainder = (int) $bits % 8;
+			if ( substr( $packed, 0, $bytes ) === substr( $network, 0, $bytes ) && ( ! $remainder || 0 === ( ( ord( $packed[ $bytes ] ) ^ ord( $network[ $bytes ] ) ) & ( 0xff << ( 8 - $remainder ) ) ) ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** Public HTTPS only; reject credentials, unusual ports and all private/reserved DNS answers. */
 	public static function validate_reference_url( $url ) {
 		if ( ! is_string( $url ) || strlen( $url ) > 2048 || preg_match( '/[\x00-\x20\\\\]/', $url ) ) {
@@ -241,7 +265,7 @@ class Imajiner_Design_System {
 			return self::error( 'url', __( 'The reference host has no public address.', 'imajiner-editor' ) );
 		}
 		foreach ( $ips as $ip ) {
-			if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+			if ( ! self::public_address( $ip ) ) {
 				return self::error( 'url', __( 'Private or reserved reference addresses are not allowed.', 'imajiner-editor' ) );
 			}
 		}
@@ -294,7 +318,7 @@ class Imajiner_Design_System {
 		}
 		$host = wp_parse_url( $url, PHP_URL_HOST );
 		$ip = filter_var( $host, FILTER_VALIDATE_IP ) ? $host : gethostbyname( $host );
-		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+		if ( ! self::public_address( $ip ) ) {
 			return self::error( 'reference', __( 'The reference host must resolve to a public IPv4 address.', 'imajiner-editor' ), 422 );
 		}
 		$pin = static function ( $handle, $args, $requested_url ) use ( $url, $host, $ip ) {

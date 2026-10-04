@@ -373,6 +373,26 @@ final class DesignSystemTest extends TestCase {
 		self::assertSame( array(), $this->requests );
 	}
 
+	public function test_non_global_reference_addresses_are_rejected_before_network(): void {
+		foreach ( array( '100.64.0.1', '100.127.255.255', '192.0.0.8', '192.0.2.1', '192.88.99.1', '198.18.0.1', '198.19.255.255', '198.51.100.1', '203.0.113.1', '224.0.0.1', '239.255.255.255' ) as $ip ) {
+			$url = 'https://' . $ip . '/';
+			self::assertWPErrorCode( 'imajiner_design_url', Imajiner_Design_System::validate_reference_url( $url ) );
+			self::assertWPErrorCode( 'imajiner_design_url', Imajiner_Design_System::reference_data( $url ) );
+		}
+		self::assertSame( array(), $this->requests );
+	}
+
+	public function test_public_address_ranges_and_ipv6_special_use_boundaries(): void {
+		$method = new ReflectionMethod( Imajiner_Design_System::class, 'public_address' );
+		$method->setAccessible( true );
+		foreach ( array( 'not-an-ip', '127.0.0.1', '10.0.0.1', '240.0.0.1', '::1', '::ffff:8.8.8.8', 'fc00::1', 'fe80::1', 'ff02::1', '2001:1ff::1', '2001:db8::1', '2002:0808:0808::1', '3ffe::1', '3fff:fff::1' ) as $ip ) {
+			self::assertFalse( $method->invoke( null, $ip ), $ip );
+		}
+		foreach ( array( '8.8.8.8', '100.63.255.255', '100.128.0.0', '198.17.255.255', '198.20.0.0', '2001:4860:4860::8888', '2606:4700:4700::1111', '2001:200::1', '3fff:1000::1' ) as $ip ) {
+			self::assertTrue( $method->invoke( null, $ip ), $ip );
+		}
+	}
+
 	public function test_bounded_reference_styles_are_data_and_only_same_origin_css_is_fetched(): void {
 		$url = 'https://example.org/design-test';
 		$this->responses[ $url ] = $this->response( '<html><head><style>:root {--brand: #112233;} h1 {font-size: 3rem; color: #abcdef;}</style><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="https://example.net/private.css"><script>alert("never execute")</script></head><body style="padding: 2rem; background-image: url(https://example.invalid/collect)"></body></html>' );
