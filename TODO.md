@@ -3,6 +3,12 @@
 Implementation and validation checklist, grouped by area. **P1** = needed for the agency to use it day to day, **P2** = important, **P3** = nice to have.
 What's already done is listed under "Status" in `AGENTS.md`.
 
+## Checkpoint and how to resume
+
+The six feature branches are integrated and committed. Checked feature items mean implementation plus automated coverage; they do not mean browser acceptance or live provider/FTP/SSH verification. This is a saved work checkpoint, not a claim that the full Todo is finished. The unfinished checks below must stay open until their evidence is recorded.
+
+Resume with the full WordPress PHPUnit command in `wp-content/plugins/imajiner-editor/tests/README.md`, then inspect the existing PR's PHP 7.4/8.1 CI results. Use the disposable-site Playwright harness for the three automated flows; also exercise the additional interactions listed below. Record the tested commit, commands, failures and any remaining gaps before changing checkboxes.
+
 ## AI features
 
 - [x] **P1** Create a template from a prompt
@@ -72,9 +78,17 @@ What's already done is listed under "Status" in `AGENTS.md`.
 - [x] Actual local authenticated HTTP routes: sync generation; async signed-loopback completion; explicit acceptance; instrumented template render; design acceptance and token enqueue; unauthenticated/invalid-signature denial
 - [x] Real WP-CLI POT extraction and reproducible translation/provider/E2E commands in plugin tests README
 - [x] Playwright dependency install, three-test discovery and local fixture/provider setup/cleanup; no browser execution in this integration
-- [ ] Parent: execute browser flows and native keyboard/touch/responsive layout, then update this checklist from evidence
-- [ ] Parent: PHP 7.4.33 runtime checks using its available Docker runtime (delegated, not blocked)
-- [ ] Parent: PR CI execution after branch integration (workflow added, not yet run remotely)
+- [ ] Rerun the complete integrated WordPress suite in the parent checkout; the integration session reported 197 tests / 1,282 assertions and one conditional adapter skip, but that result has not been independently repeated here
+- [ ] Execute the three Playwright browser flows: manual editing/history restore, background AI creation/review/acceptance, and design-system review/acceptance/persistence
+- [ ] Additional browser acceptance: Normalize; selected-section AI review/cancel; screenshot and HTTPS-reference inputs; token revision restore and reuse after a fresh editor/session; structural edits/library/undo; mixed-content inline text; dynamic sources; CSS states/media; template/part management; two-session locks; native keyboard, touch and responsive navigation
+- [ ] PHP 7.4 runtime execution of the full WordPress suite (Docker or successful PHP 7.4 CI); syntax parsing alone is insufficient
+- [ ] Existing PR: review both PHP 7.4/8.1 CI jobs, fix failures, and record their final results; CI runs discovery but does not execute Playwright browsers
 - [ ] Real paid-provider requests, model-list calls and authenticated key portal checks; no keys provisioned
 - [ ] Live FTP/SSH host credential/write/rollback validation; only mocked transports and direct local I/O exercised
 - [ ] Optional independent pre-client security audit; no external audit is claimed
+
+## Known implementation limits to retain in deployment docs
+
+- Remote PHP/CSS replacement is verified with backups and rollback, but is not an atomic two-file transaction. A transport failure or process crash can still require administrator recovery; real-host recovery testing remains open above.
+- Delete saves a revision, but the normal History/restore route requires a discoverable existing template. There is no dedicated undelete UI; recovery of deleted PHP/CSS pairs still requires an administrator.
+- Uninstall cleanup applies to the current site with bounded batches; it does not sweep all sites in a multisite network. Network-wide cleanup would need separate implementation and tests before claiming that support.
