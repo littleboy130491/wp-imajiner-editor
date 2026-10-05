@@ -50,7 +50,7 @@ test( 'background AI generation uses deterministic WordPress provider and explic
 	await page.locator( '#imj-ai-prompt' ).fill( 'Create a disposable heading and token-based spacing.' );
 	await page.locator( '#imj-ai-generate' ).click();
 	await expect( page.locator( '#imj-ai-review' ) ).toBeVisible();
-	await expect( page.locator( '#imj-ai-comparison textarea' ).last() ).toHaveValue( /E2E generated heading/ );
+	await expect( page.locator( '#imj-ai-comparison textarea[aria-label="After — PHP"]' ) ).toHaveValue( /E2E generated heading/ );
 	await expect( page.locator( '#imj-ai-accept' ) ).toBeEnabled();
 	await page.locator( '#imj-ai-accept' ).click();
 	await expect( page.locator( '#imj-preview' ) ).toBeVisible();
