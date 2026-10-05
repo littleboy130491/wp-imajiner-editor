@@ -86,7 +86,10 @@ class Imajiner_Editor {
 		if ( 0 === strpos( $key, 'parts/' ) ) {
 			$slug  = substr( $key, 6 );
 			$parts = imajiner_get_parts();
-			if ( ! isset( $parts[ $slug ] ) ) {
+		if ( ! isset( $parts[ $slug ] ) ) {
+				return null;
+			}
+			if ( is_wp_error( Imajiner_Filesystem::validate_path( $parts[ $slug ]['file'], true ) ) ) {
 				return null;
 			}
 			return array(
@@ -105,6 +108,9 @@ class Imajiner_Editor {
 			return null;
 		}
 		$template = $templates[ $key ];
+		if ( is_wp_error( Imajiner_Filesystem::validate_path( $template['file'], true ) ) ) {
+			return null;
+		}
 
 		return array(
 			'key'       => $key,
@@ -250,8 +256,10 @@ class Imajiner_Editor {
 				// A single template assigned to this post type applies when no template is chosen.
 				'assigned'     => $template && 'location' === $template['type'] ? $template['name'] : '',
 				'builderUrl'   => Imajiner_Builder::url(),
+				'aiUrl'        => Imajiner_Generation::can_generate() ? Imajiner_Builder::url() . '#imj-ai' : '',
 			)
 		);
+		wp_set_script_translations( 'imajiner-block-editor', 'imajiner-editor', IMAJINER_EDITOR_DIR . 'languages' );
 	}
 
 	/**
@@ -341,6 +349,7 @@ class Imajiner_Editor {
 				'previewOrigin' => self::origin( home_url() ),
 				'restUrl'       => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/templates/' . $template['key'] ),
 				'restNonce'     => wp_create_nonce( 'wp_rest' ),
+				'normalizeUrl'  => Imajiner_Generation::can_generate() ? add_query_arg( 'normalize', $template['key'], Imajiner_Builder::url() ) . '#imj-ai' : '',
 			),
 			self::template_payload( $template, $files )
 		);
@@ -348,8 +357,12 @@ class Imajiner_Editor {
 		// The editor page is standalone, so it prints its own assets (see views/editor.php).
 		wp_enqueue_media();
 		wp_enqueue_style( 'imajiner-editor', IMAJINER_EDITOR_URL . 'assets/css/editor.css', array(), IMAJINER_EDITOR_VERSION );
-		wp_enqueue_script( 'imajiner-editor', IMAJINER_EDITOR_URL . 'assets/js/editor.js', array( 'media-editor' ), IMAJINER_EDITOR_VERSION, true );
+		wp_enqueue_script( 'imajiner-editor', IMAJINER_EDITOR_URL . 'assets/js/editor.js', array( 'media-editor', 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
+		wp_set_script_translations( 'imajiner-editor', 'imajiner-editor', IMAJINER_EDITOR_DIR . 'languages' );
 		wp_add_inline_script( 'imajiner-editor', 'window.imajinerEditor = ' . wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ) . ';', 'before' );
+		wp_enqueue_script( 'imajiner-editor-ai', IMAJINER_EDITOR_URL . 'assets/js/editor-ai.js', array( 'imajiner-editor', 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
+		wp_set_script_translations( 'imajiner-editor-ai', 'imajiner-editor', IMAJINER_EDITOR_DIR . 'languages' );
+		wp_localize_script( 'imajiner-editor-ai', 'imajinerEditorAI', array( 'restUrl' => rest_url( Imajiner_Rest::NAMESPACE_V1 . '/ai/' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'stylesheets' => self::design_stylesheet_urls() ) );
 
 		require IMAJINER_EDITOR_DIR . 'views/editor.php';
 		exit;
@@ -375,6 +388,7 @@ class Imajiner_Editor {
 		return array(
 			'hash'      => Imajiner_Template_Store::hash( $files ),
 			'structure' => $scanner->get_structure(),
+			'styleRules' => $css->get_style_rules( self::css_scope( $template ) ),
 			// An empty array would encode as [] instead of {}.
 			'styles'    => (object) array_map(
 				function ( $classes ) {
@@ -419,7 +433,27 @@ class Imajiner_Editor {
 		 *
 		 * @param array $breakpoints Name => label, media and width. Keep them ordered widest first.
 		 */
+		$saved = get_option( 'imajiner_editor_breakpoints' );
+		if ( is_array( $saved ) && ! is_wp_error( self::validate_breakpoints( $saved ) ) ) {
+			$breakpoints = $saved;
+		}
 		return apply_filters( 'imajiner_editor_breakpoints', $breakpoints );
+	}
+
+	public static function validate_breakpoints( $breakpoints ) {
+		$invalid = new WP_Error( 'imajiner_breakpoints', __( 'Use an ordered list of 1–8 named breakpoints with a base first, safe media conditions, labels and widths of 240–3840 pixels.', 'imajiner-editor' ), array( 'status' => 400 ) );
+		if ( ! is_array( $breakpoints ) || ! $breakpoints || count( $breakpoints ) > 8 ) {
+			return $invalid;
+		}
+		$first = true;
+		foreach ( $breakpoints as $name => $point ) {
+			if ( ! is_string( $name ) || ! preg_match( '/^[a-z][a-z0-9_-]{0,30}$/', $name ) || ! is_array( $point ) || ! isset( $point['label'], $point['media'], $point['width'] ) || ! is_string( $point['label'] ) || '' === trim( $point['label'] ) || strlen( $point['label'] ) > 60 || wp_strip_all_tags( $point['label'] ) !== $point['label'] || ! is_string( $point['media'] ) || strlen( $point['media'] ) > 200 || preg_match( '/[^a-zA-Z0-9\s():.,%_\/-]/', $point['media'] ) || ( $first && '' !== $point['media'] ) || ( ! $first && '' === trim( $point['media'] ) ) || ! is_numeric( $point['width'] ) || $point['width'] < 240 || $point['width'] > 3840 ) {
+				return $invalid;
+			}
+			$breakpoints[ $name ] = array( 'label' => $point['label'], 'media' => $point['media'], 'width' => (int) $point['width'] );
+			$first = false;
+		}
+		return $breakpoints;
 	}
 
 	/**
@@ -427,25 +461,38 @@ class Imajiner_Editor {
 	 *
 	 * @return array Token name => value.
 	 */
-	public static function design_tokens() {
-		$files = array( get_template_directory() . '/assets/css/base.css' );
-		if ( is_child_theme() ) {
-			$files[] = get_stylesheet_directory() . '/style.css';
+	public static function design_stylesheet_urls() {
+		$sources = function_exists( 'imajiner_design_token_sources' ) ? imajiner_design_token_sources() : array( get_template_directory() . '/assets/css/base.css', get_stylesheet_directory() . '/style.css' );
+		$urls = array();
+		foreach ( $sources as $path ) {
+			if ( is_string( $path ) && 'css' === pathinfo( $path, PATHINFO_EXTENSION ) && ! is_wp_error( Imajiner_Filesystem::validate_path( $path, true ) ) && is_file( $path ) ) {
+				$relative = substr( wp_normalize_path( $path ), strlen( untrailingslashit( wp_normalize_path( WP_CONTENT_DIR ) ) ) );
+				$urls[] = add_query_arg( 'ver', filemtime( $path ), content_url( $relative ) );
+			}
 		}
+		return $urls;
+	}
+
+	public static function design_tokens() {
+		$files = function_exists( 'imajiner_design_token_sources' ) ? imajiner_design_token_sources() : array( get_template_directory() . '/assets/css/base.css', get_stylesheet_directory() . '/style.css' );
 
 		$tokens = array();
 		foreach ( $files as $file ) {
-			if ( ! is_readable( $file ) ) {
+			if ( ! is_string( $file ) || is_wp_error( Imajiner_Filesystem::validate_path( $file, true ) ) || ! is_readable( $file ) ) {
 				continue;
 			}
 			// Commented-out examples in the child stylesheet must not count.
-			$css = preg_replace( '#/\*.*?\*/#s', '', file_get_contents( $file ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			$css = Imajiner_Filesystem::read( $file );
+			if ( is_wp_error( $css ) ) {
+				continue;
+			}
+			$css = preg_replace( '#/\*.*?\*/#s', '', $css );
 			preg_match_all( '/(--imj-[a-z0-9-]+)\s*:\s*([^;}]+)/', $css, $matches, PREG_SET_ORDER );
 			foreach ( $matches as $match ) {
 				$tokens[ $match[1] ] = trim( $match[2] );
 			}
 		}
 
-		return (object) $tokens;
+		return (object) apply_filters( 'imajiner_design_system_tokens', $tokens );
 	}
 }

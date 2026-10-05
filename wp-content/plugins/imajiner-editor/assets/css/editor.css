@@ -35,10 +35,12 @@ body.imj-editor {
 
 .imj-topbar {
 	display: flex;
+	flex-wrap: wrap;
+	flex-shrink: 0;
 	align-items: center;
 	gap: 16px;
-	height: 48px;
-	padding: 0 16px;
+	min-height: 48px;
+	padding: 8px 16px;
 	background: var(--imj-ui-topbar);
 	color: #fff;
 }
@@ -132,6 +134,21 @@ body.imj-editor {
 
 .imj-tree {
 	padding: 8px 0;
+}
+
+.imj-add-section {
+	margin: 12px;
+}
+
+.imj-structure-controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.imj-tree__row[draggable="true"] {
+	cursor: grab;
 }
 
 .imj-tree__list {
@@ -352,6 +369,7 @@ body.imj-editor {
 
 .imj-topbar__actions {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 }
@@ -738,3 +756,28 @@ body.imj-editor {
 	color: #dcdcde;
 	font-size: 11px;
 }
+
+.imj-tree__row:focus-visible {
+	outline: 2px solid #2563eb;
+	outline-offset: -2px;
+}
+
+.imj-diff {
+	max-height: 350px;
+	overflow: auto;
+	width: 100%;
+	font-family: monospace;
+	white-space: pre-wrap;
+}
+
+.imj-diff table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.imj-diff .diff-deletedline { background: #ffe5e5; }
+.imj-diff .diff-addedline { background: #e5ffe5; }
+.imj-history__panel { width: min(800px, 90vw); }
+.imj-history__list li { flex-wrap: wrap; }
+.imj-breakpoint-dialog { width: min(650px, 90vw); border: 1px solid #ddd; padding: 24px; }
+.imj-breakpoint-dialog textarea { width: 100%; font-family: monospace; }

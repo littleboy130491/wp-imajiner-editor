@@ -19,7 +19,7 @@
 - **Three kinds of templates**, all files in the child theme's `imajiner/` folder, addressed in the plugin by a key (file name without `.php`, or `parts/<slug>`):
   - **Page templates**: `Template Name:` header, chosen per page in the Template dropdown
   - **Single / archive templates**: `Imajiner Location: <location>[, …]` header. Locations come from the site's public post types and taxonomies (`imajiner_template_locations()`: `single`, `single:<type>`, `archive`, `archive:<type>`, `taxonomy:<tax>`, `author`, `date`, `search`, `404`). The theme resolves the most specific match per request (`imajiner_request_locations()`); a template chosen on a post or page wins over its location. Single templates may also have `Template Post Type:` so they can be chosen per post
-  - **Template parts**: `imajiner/parts/<slug>.php` with `Part Name:`, `Part Location:` (`header` / `footer` replace the defaults, or a THA hook such as `tha_footer_before`) and `Part Description:`. Rendered by `imajiner_part( 'slug' )` inside `<div class="imj-part imj-part-<slug>">` (`display: contents`). CSS in `imajiner/parts/css/<slug>.css`, scoped with `.imj-part-<slug>`; all parts' CSS is loaded on every page
+  - **Template parts**: `imajiner/parts/<slug>.php` with `Part Name:`, `Part Location:` (`header` / `footer` replace the defaults, or a THA hook such as `tha_footer_before`) and `Part Description:`. Rendered by `imajiner_part( 'slug' )` inside `<div class="imj-part imj-part-<slug>">` (`display: contents`). CSS in `imajiner/parts/css/<slug>.css`, scoped with `.imj-part-<slug>`; CSS loads only when the part renders (late explicit calls emit the stylesheet). Portable `Part Post Types`, `Part Include` and `Part Exclude` headers provide conditions; exclusions win
   - Assignments live in the file headers, not the database, so they travel with the child theme in git
 - **Theme runtime is in the theme** (`inc/locations.php`, `inc/parts.php`), so the site renders the same with the plugin off. The plugin only edits
 - **Standard hooks:** the theme fires the Theme Hook Alliance hooks (`tha_html_before` … `tha_body_bottom`, `tha_entry_*`, `tha_comments_*`) and declares `add_theme_support( 'tha_hooks', array( 'all' ) )`. Canvas templates only fire the document-level ones
@@ -58,7 +58,7 @@ Every template the AI generates, or that Normalize produces, must follow these r
 | Static HTML | headings, text, images, links, classes | Fully editable visually |
 | Dynamic value | `the_title()`, `get_field( 'price' )` | Locked chip; source can be changed |
 | Structure | `while ( have_posts() )`, `WP_Query`, `if`, `get_template_part()` | Container; editing the loop item applies to every item |
-| Opaque PHP | anything not cleanly classifiable | Locked; edit via code view or "Edit with AI" |
+| Opaque PHP | anything not cleanly classifiable | Locked; read-only code inspection, never rewritten by visual/selected AI actions |
 
 ## Architecture
 
@@ -77,17 +77,17 @@ No Composer dependencies and no JS build step: PHP's tokenizer plus the WordPres
   - Text is escaped only for `&`, `<`, `>` so the source stays readable; URL attributes go through `esc_url()`
   - After applying, the new source is re-scanned and every PHP block must be byte-identical, or nothing is written
 - **CSS editor** (`Imajiner_Css_Editor`): reads rules at the top level and inside `@media` blocks, and changes one declaration at a time (replace a value, add or remove a declaration, add a rule or a new `@media` block), leaving the rest of the file byte-for-byte
-  - Styles target a class: the rule `.imj-<slug> .<class>`. Compound selectors, other at-rules and nested `@media` are left alone
+  - Styles target a class: the rule `.imj-<slug> .<class>`. Scoped compound selectors and exact media contexts are editable; unsupported at-rules and ambiguous nested structures are left alone, not converted into max-width fallbacks
   - `@media` conditions are matched ignoring spaces and case. New rules go where the cascade needs them: base rules before any breakpoint block, each breakpoint block before narrower ones
   - Values may not contain `{ } ; < > \` or comments, so a value can't break out of its declaration
 - **Store** (`Imajiner_Template_Store`): a template is saved as a pair, the PHP file and `css/<slug>.css`. Stale-hash check over both (409), `token_get_all( TOKEN_PARSE )` syntax check, previous version of both saved as an `imajiner_revision` post (PHP in content, CSS in meta; last 30 per template, never as a web-accessible file), temp file + `rename()` per file (stylesheet first), `opcache_invalidate()`
 - **REST** (`imajiner/v1`, cookie auth + `X-WP-Nonce`, `edit_themes`): `POST templates/<key>/save`, `GET templates/<key>/revisions`, `POST templates/<key>/revisions/<id>/restore`
 - **Template manager** (Appearance → Imajiner Templates, `Imajiner_Builder`): lists parts and templates, creates them from starters (blank section, copy of the default header/footer; page, single, archive, search and 404 starters), and assigns locations. Changing a location rewrites that header line (`Imajiner_Builder::set_header()`, same line format as `get_file_data()`) through the store, with a revision
 - **Entry points:** `post.php?post=ID&action=imajiner` opens the template that renders a post (chosen or assigned); `admin.php?action=imajiner_template&template=<key>` opens any template or part
-- **Editor UI:** pending changes are kept in the browser and shown live in the preview (`imj:apply` messages, `imj:css` for styles); Save / Ctrl+S sends them all at once; Discard and History (with two-click restore) in the top bar; images use the WordPress media library
+- **Editor UI:** pending text/style changes are kept in the browser. Structural operations are replayed by `POST templates/<key>/stage` into an hour-long user-owned transient; the preview executes only the original PHP blocks with the staged literal HTML, and does not write the theme. Save / Ctrl+S replays the ordered operations once through the store, creating one revision. Discard restores the saved structure. Images use the WordPress media library
 - **Breakpoints** (`Imajiner_Editor::breakpoints()`, filter `imajiner_editor_breakpoints`): desktop-first. Desktop = base rules, Tablet = `@media (max-width: 1024px)`, Mobile = `@media (max-width: 767px)`
 - **Device preview:** the iframe renders at the device's real width (Tablet 768px, Mobile 375px, Desktop at least 1280px) and is scaled down to fit the canvas, so `@media` rules match as on a real screen. The iframe has no border (a border would shrink the viewport and shift breakpoints)
-- **Style tab:** controls for typography, background, spacing, size and border, plus any other declaration in the class's rule. Inputs suggest design tokens (`var(--imj-*)`, read from the parent `base.css` and the child `style.css`), and placeholders show the element's computed value from the preview. Elements without a class get an "Add class" prompt; a class set by PHP can't be styled. Edits apply to the device chosen in the top bar; placeholders come from the preview at that width
+- **Style tab:** controls for typography, background, spacing, size and border, plus any other declaration in the class's rule. Inputs suggest design tokens (`var(--imj-*)`, read through `imajiner_design_token_sources()` from parent base CSS, child style CSS and accepted child `assets/css/design-tokens.css`), and placeholders show the element's computed value from the preview. Elements without a class get an "Add class" prompt; a class set by PHP can't be styled. Edits apply to the device chosen in the top bar; placeholders come from the preview at that width
 - **CSS:** the editor writes to the template's `imajiner/css/<slug>.css`; loading it is the theme's job
 - **AI:** works on a selected section or node, not the whole file, except for "create from scratch" and "Normalize". All AI output goes through the same validation as manual edits
 
@@ -96,15 +96,17 @@ No Composer dependencies and no JS build step: PHP's tokenizer plus the WordPres
 - **Settings** (Settings → Imajiner Editor, `Imajiner_Settings`, `manage_options`): primary model (provider + model), optional fallback model, the system prompt, and an API key per provider
 - **Providers** (`Imajiner_AI::providers()`): OpenRouter, OpenAI, Claude (Anthropic), Google Gemini, xAI Grok, Meta (`https://api.meta.ai/v1`), Mistral, DeepSeek, Groq, and any other OpenAI-compatible endpoint with a custom base URL
   - OpenAI-compatible providers: `POST {base}/chat/completions`, `GET {base}/models`, Bearer key. OpenAI uses `max_completion_tokens` (its newer models reject `max_tokens`)
-  - Claude uses Anthropic's own Messages API (`POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`), not the OpenAI-compatibility layer. Default model `claude-opus-5-5`. System messages go in the top-level `system` field; no sampling parameters (current Claude models reject them). For `claude-fable-5-1`, `claude-opus-5-5`, `claude-opus-5` and `claude-sonnet-5-5` it sends `"fallbacks": "default"` with `anthropic-beta: server-side-fallback-2026-07-01`, and treats `stop_reason: "refusal"` as an error
+  - Claude uses Anthropic's own Messages API (`POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`), not the OpenAI-compatibility layer. Default model `claude-opus-5`; explicit selection is preserved. System messages go in the top-level `system` field; no sampling parameters. `ANTHROPIC_FALLBACK_MODELS` lists supported Claude 5/fable models that receive `"fallbacks": "default"` and `anthropic-beta: server-side-fallback-2026-07-01`; unknown explicit IDs omit beta settings. Refusal/length-limit responses are errors. Provider-native image payloads include actual attachment bytes (OpenAI data URLs; Claude base64 sources), not inaccessible local URLs
 - **Fallback:** `Imajiner_AI::chat()` tries the primary model and, on any error (including a refusal), the fallback model. Passing `provider`/`model` in `$args` calls one model with no fallback (used by the settings Test button)
 - **API keys** are never hashed (they must be sent to the provider) but encrypted at rest with libsodium secretbox (`Imajiner_Secrets`), keyed from `IMAJINER_EDITOR_ENCRYPTION_KEY` if defined, else `wp_salt( 'logged_in' )`. Never sent to the browser (only the last 4 characters), stripped from provider error messages, option not autoloaded, deleted on uninstall. A key can instead be defined in wp-config.php as `IMAJINER_<PROVIDER>_API_KEY`. Changing the custom provider's base URL to another host drops its saved key. Custom base URLs must be HTTPS (HTTP only for local servers)
-- **System prompt** (`Imajiner_Prompts`): `default_system_prompt()` teaches the template contract (theme layout, section markers, editable vs locked content, template types and this site's locations, template parts and the site's existing parts with their descriptions, hooks, PHP rules, CSS scoping, design tokens and breakpoints, all filled in live from the theme). `system_prompt()` appends the site's "Additional instructions" from the settings. AI features must start every request with `system_prompt()`
+- **System prompt** (`Imajiner_Prompts`): `default_system_prompt()` teaches the template contract (theme layout, section markers, editable vs locked content, template types and this site's locations, template parts and the site's existing parts with their descriptions, hooks, PHP rules, CSS scoping, design tokens and breakpoints, all filled in live from the theme). `system_prompt()` appends the site's "Additional instructions" and persisted design tokens through the design-system hook. AI features must start every request with `system_prompt()`
+- **Jobs**: UI sends `async: true` to generation/design extraction, receives 202 and polls owner-only status/progress/cancel endpoints. Legacy routes remain synchronous by default. Jobs contain user/theme/source hash, never provider keys; WP-Cron plus signed nonblocking loopback executes work. Configure a host cron for reliable dispatch on low-traffic sites. Proposals never persist automatically; explicit accept is separate. Cancelled/expired jobs cannot be accepted
+- **Design system**: Appearance → Imajiner Design System extracts a reviewed CSS-token proposal from prompt, local owned screenshot and/or bounded public HTTPS reference. Acceptance writes only child `assets/css/design-tokens.css`, with hash checks/private revisions/restore. Theme frontend and block editor load accepted tokens even with the plugin disabled; static AI review previews use the same trusted source list
 
 ## Safety
 
 - Saving a PHP file is code execution: require the `edit_themes` capability and respect `DISALLOW_FILE_EDIT`
-- Before every write: syntax-check with `token_get_all( $code, TOKEN_PARSE )`, write atomically (temp file + rename), and save the previous version
+- Before every template write: syntax-check with `token_get_all( $code, TOKEN_PARSE )`, stale-check, save the previous version and write through `Imajiner_Filesystem` (WP_Filesystem). Child-only/approved preview paths; symlink/traversal checks. Direct transport uses verified temp + rename; FTP/SSH writes use verified backup/rollback but are not globally atomic across a PHP/CSS pair
 - Version history with one-click rollback per template
 - Treat AI output as untrusted until it has been linted and previewed
 
@@ -114,7 +116,7 @@ No Composer dependencies and no JS build step: PHP's tokenizer plus the WordPres
 - Edit static HTML: text, images, links, classes, and the template's CSS
 - Loops and dynamic values shown but locked
 - AI: create from scratch + Normalize
-- Later: section-level "Edit with AI"
+- Selected static sections/elements: background "Edit with AI", validated review and explicit acceptance; PHP-bearing selections remain locked
 
 ## Code layout
 
@@ -148,10 +150,13 @@ wp-content/plugins/imajiner-editor/
 
 ## Status
 
-- Done: theme + child theme; editor with layers tree, click-to-select preview, properties panel; editing text, attributes (links, classes, alt, ...) and images; Style tab writing to the template stylesheet, with Desktop/Tablet/Mobile breakpoints; live preview; save with validation, version history and restore (PHP + CSS together); entry points (block editor panel, Pages row action)
+- Done: theme + child theme; editor with layers tree, click-to-select preview, properties panel; adding, deleting, duplicating and reordering static elements and sections from the tree or preview; editing text, attributes (links, classes, alt, ...) and images; Style tab writing to the template stylesheet, with Desktop/Tablet/Mobile breakpoints; live preview; save with validation, version history and restore (PHP + CSS together); entry points (block editor panel, Pages row action)
 - Done: AI settings (10 providers + custom, primary/fallback model, encrypted keys, built-in system prompt + site additions, Load models / Test)
 - Done: template parts, single/archive templates with detected locations, Appearance → Imajiner Templates, THA hooks, Patterns menu hidden
-- Next: AI create from scratch + Normalize, built on `Imajiner_AI::chat()` and `Imajiner_Prompts::system_prompt()`
-- Full list of unfinished work: `TODO.md`
-- Testing: the team edits `page-example.php` by hand in the editor. Automated tests must use a throwaway template + page (and delete them afterwards), never the example page, so they can't overwrite or restore over someone's work
+- Done: AI create from scratch + Normalize, with validated PHP/CSS proposals, static before/after review, confirmation, draft page assignment and revision history
+- Done: section/element AI jobs; ready-made section library; undo/redo; inline and mixed-content text; allowlisted dynamic-source changes; read-only PHP inspection; hover/focus and exact-media/compound CSS; revision diff; expiring user/session editing locks; breakpoint settings and keyboard layers
+- Done: child-only rename/delete with revisions/assignment handling; portable part conditions; CPT/taxonomy/term/front/home locations; render-only part CSS; accessible progressive navigation; child scaffold admin/CLI creation and separate activation; theme.json/editor styles/screenshots
+- Done: filesystem/credential adapter; private bounded usage logs; design extraction/review/revisions; real POT and translated JS wiring; repository PHP/Node tests, deterministic Playwright harness, CI and child-per-client deployment documentation
+- This is an implementation checkpoint, not full Todo completion. Resume from the unchecked validation and follow-up items in `TODO.md`; exact commands: `wp-content/plugins/imajiner-editor/tests/README.md`. PHP 7.4/8.1 PR CI passed on the documented code checkpoint. No browser execution, paid-provider, live FTP/SSH or independent audit is claimed; the independent local parent-suite rerun also remains open
+- Testing: automated suites use throwaway templates/pages and cleanup. Never write/restore the reference `page-example.php` or other production content. E2E requires a dedicated loopback site, explicit local opt-in and environment credentials; the provider harness refuses external HTTP
 - Local dev: WP-CLI needs the MySQL socket path: `php -d mysqli.default_socket=/var/run/mysqld/mysqld.sock $(readlink -f $(which wp)) ...`

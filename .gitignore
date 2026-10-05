@@ -5,6 +5,9 @@
 !/.gitignore
 !/AGENTS.md
 !/TODO.md
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
 
 !/wp-content/
 /wp-content/*
@@ -17,3 +20,6 @@
 /wp-content/themes/*
 !/wp-content/themes/imajiner/
 !/wp-content/themes/imajiner-child/
+**/node_modules/
+**/test-results/
+**/playwright-report/

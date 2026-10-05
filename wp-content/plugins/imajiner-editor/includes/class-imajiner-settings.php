@@ -62,7 +62,8 @@ class Imajiner_Settings {
 	 * Loads the script for "Load models" and "Test".
 	 */
 	public static function enqueue_assets() {
-		wp_enqueue_script( 'imajiner-settings', IMAJINER_EDITOR_URL . 'assets/js/settings.js', array( 'wp-api-fetch' ), IMAJINER_EDITOR_VERSION, true );
+		wp_enqueue_script( 'imajiner-settings', IMAJINER_EDITOR_URL . 'assets/js/settings.js', array( 'wp-api-fetch', 'wp-i18n' ), IMAJINER_EDITOR_VERSION, true );
+		wp_set_script_translations( 'imajiner-settings', 'imajiner-editor', IMAJINER_EDITOR_DIR . 'languages' );
 		wp_localize_script(
 			'imajiner-settings',
 			'imajinerSettings',
@@ -154,7 +155,8 @@ class Imajiner_Settings {
 
 		return rest_ensure_response(
 			array(
-				'model' => $slot['model'],
+				'model' => Imajiner_AI::last_result()['model'] ?: $slot['model'],
+				'usage' => Imajiner_AI::last_result()['usage'],
 				'reply' => mb_substr( trim( $reply ), 0, 100 ),
 			)
 		);

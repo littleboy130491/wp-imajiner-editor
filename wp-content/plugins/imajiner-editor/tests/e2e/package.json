@@ -1,0 +1,11 @@
+{
+  "name": "imajiner-editor-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:list": "playwright test --list",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": { "@playwright/test": "1.55.1" }
+}

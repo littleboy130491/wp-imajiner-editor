@@ -75,6 +75,84 @@ class Imajiner_Css_Editor {
 	}
 
 	/**
+	 * AI styles may contain scoped rules and media/supports groups only.
+	 *
+	 * @param string $css   Stylesheet source.
+	 * @param string $scope Required leading selector.
+	 * @return true|WP_Error
+	 */
+	public static function validate_scope( $css, $scope ) {
+		$editor = new self( $css );
+		if ( $editor->broken || ! $editor->scoped_block( 0, strlen( $css ), $scope ) ) {
+			return new WP_Error( 'imajiner_css_scope', 'CSS must contain balanced rules scoped under ' . $scope . ', with only @media or @supports groups and no nested selectors.' );
+		}
+		return true;
+	}
+
+	private function scoped_block( $from, $to, $scope ) {
+		$start = $from;
+		$depth = 0;
+		for ( $i = $from; $i < $to; ++$i ) {
+			$char = $this->css[ $i ];
+			if ( '/' === $char && isset( $this->css[ $i + 1 ] ) && '*' === $this->css[ $i + 1 ] ) {
+				$end = strpos( $this->css, '*/', $i + 2 );
+				if ( false === $end || $end >= $to ) {
+					return false;
+				}
+				$i = $end + 1;
+				continue;
+			}
+			if ( '"' === $char || "'" === $char ) {
+				$i = $this->skip_string( $i ) - 1;
+				if ( $i >= $to || $this->css[ $i ] !== $char ) {
+					return false;
+				}
+				continue;
+			}
+			if ( '(' === $char || '[' === $char ) {
+				++$depth;
+			} elseif ( ')' === $char || ']' === $char ) {
+				if ( --$depth < 0 ) {
+					return false;
+				}
+			} elseif ( '}' === $char || ';' === $char || '\\' === $char ) {
+				return false;
+			} elseif ( '{' === $char && 0 === $depth ) {
+				$close   = $this->matching_brace( $i );
+				$prelude = $this->normalize( substr( $this->css, $start, $i - $start ) );
+				if ( null === $close || $close >= $to || '' === $prelude ) {
+					return false;
+				}
+				if ( preg_match( '/^@(media|supports)\s+.+$/is', $prelude ) ) {
+					if ( ! $this->scoped_block( $i + 1, $close, $scope ) ) {
+						return false;
+					}
+				} else {
+					foreach ( explode( ',', $prelude ) as $selector ) {
+						$selector = trim( $selector );
+						$tail     = substr( $selector, strlen( $scope ) );
+						if ( 0 !== strpos( $selector, $scope ) || ( '' !== $tail && ! ctype_space( $tail[0] ) && '>' !== $tail[0] ) || preg_match( '/^[+~]/', ltrim( $tail ) ) ) {
+							return false;
+						}
+					}
+					for ( $j = $i + 1; $j < $close; ++$j ) {
+						if ( '/' === $this->css[ $j ] && '*' === $this->css[ $j + 1 ] ) {
+							$j = $this->skip_comment( $j ) - 1;
+						} elseif ( '"' === $this->css[ $j ] || "'" === $this->css[ $j ] ) {
+							$j = $this->skip_string( $j ) - 1;
+						} elseif ( '{' === $this->css[ $j ] || '}' === $this->css[ $j ] ) {
+							return false;
+						}
+					}
+				}
+				$i     = $close;
+				$start = $close + 1;
+			}
+		}
+		return 0 === $depth && '' === $this->normalize( substr( $this->css, $start, $to - $start ) );
+	}
+
+	/**
 	 * Declarations of the rules written as "<scope> .<class>", per breakpoint, merged in cascade order.
 	 *
 	 * @param string $scope       Template scope selector, e.g. ".imj-page-home".
@@ -87,7 +165,7 @@ class Imajiner_Css_Editor {
 			$names[ self::media_key( $condition ) ] = $name;
 		}
 
-		$pattern = '/^' . preg_quote( $scope, '/' ) . ' \.(' . self::CLASS_PATTERN . ')$/';
+		$pattern = '/^' . preg_quote( $scope, '/' ) . ' \.(' . self::CLASS_PATTERN . '(?::hover|:focus-visible)?)$/';
 		$styles  = array();
 
 		foreach ( $this->rules as $rule ) {
@@ -99,6 +177,38 @@ class Imajiner_Css_Editor {
 		}
 
 		return $styles;
+	}
+
+	/** Existing scoped rules, including compound selectors and arbitrary media conditions. */
+	public function get_style_rules( $scope ) {
+		$result = array();
+		foreach ( $this->rules as $rule ) {
+			if ( is_wp_error( self::validate_scope( $rule['selector'] . ' {}', $scope ) ) ) {
+				continue;
+			}
+			$key = $rule['media'] . '|' . $rule['selector'];
+			if ( ! isset( $result[ $key ] ) ) {
+				$media = '';
+				foreach ( $this->media_blocks as $block ) {
+					if ( $block['condition'] === $rule['media'] ) { $media = $block['query']; break; }
+				}
+				$result[ $key ] = array( 'selector' => $rule['selector'], 'media' => $media, 'values' => array() );
+			}
+			foreach ( $rule['declarations'] as $declaration ) {
+				$result[ $key ]['values'][ $declaration['property'] ] = $declaration['value'];
+			}
+		}
+		return array_values( $result );
+	}
+
+	/** Explicit contexts may only address existing whole rules, never split selectors. */
+	public function has_rule( $selector, $media ) {
+		foreach ( $this->rules as $rule ) {
+			if ( $rule['selector'] === $selector && $rule['media'] === self::media_key( $media ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -248,6 +358,7 @@ class Imajiner_Css_Editor {
 					$key                  = self::media_key( $match[1] );
 					$this->media_blocks[] = array(
 						'condition' => $key,
+						'query'     => $match[1],
 						'start'     => $rule_start,
 						'open'      => $i,
 						'close'     => $close,
