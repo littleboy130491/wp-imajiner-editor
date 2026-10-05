@@ -81,8 +81,8 @@ Resume with the full WordPress PHPUnit command in `wp-content/plugins/imajiner-e
 - [ ] Rerun the complete integrated WordPress suite in the parent checkout; the integration session reported 197 tests / 1,282 assertions and one conditional adapter skip, but that result has not been independently repeated here
 - [ ] Execute the three Playwright browser flows: manual editing/history restore, background AI creation/review/acceptance, and design-system review/acceptance/persistence
 - [ ] Additional browser acceptance: Normalize; selected-section AI review/cancel; screenshot and HTTPS-reference inputs; token revision restore and reuse after a fresh editor/session; structural edits/library/undo; mixed-content inline text; dynamic sources; CSS states/media; template/part management; two-session locks; native keyboard, touch and responsive navigation
-- [ ] PHP 7.4 runtime execution of the full WordPress suite (Docker or successful PHP 7.4 CI); syntax parsing alone is insufficient
-- [ ] Existing PR: review both PHP 7.4/8.1 CI jobs, fix failures, and record their final results; CI runs discovery but does not execute Playwright browsers
+- [x] PHP 7.4 runtime execution of the full WordPress suite: the PHP 7.4 CI job passed on code checkpoint `20f539ec6de0474af64879c1f756e399814f8468`; syntax parsing alone is insufficient
+- [x] [Existing PR](https://github.com/littleboy130491/wp-imajiner-editor/pull/1): both PHP 7.4/8.1 CI jobs passed on code checkpoint `20f539ec6de0474af64879c1f756e399814f8468` (job IDs `111694831023` / `111694830507`); CI runs discovery but does not execute Playwright browsers
 - [ ] Real paid-provider requests, model-list calls and authenticated key portal checks; no keys provisioned
 - [ ] Live FTP/SSH host credential/write/rollback validation; only mocked transports and direct local I/O exercised
 - [ ] Optional independent pre-client security audit; no external audit is claimed
