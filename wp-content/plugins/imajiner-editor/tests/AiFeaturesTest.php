@@ -234,6 +234,131 @@ final class AiFeaturesTest extends TestCase {
 		self::assertNull( get_post( $id ) );
 	}
 
+	public function test_cancellation_stops_validation_retry_http(): void {
+		$this->mode = 'invalid';
+		$id = $this->queued();
+		$interrupt = function ( $preempt, $args, $url ) use ( $id ) {
+			if ( false !== strpos( $url, '/chat/completions' ) ) $this->request( 'jobs/' . $id . '/cancel' );
+			return $preempt;
+		};
+		add_filter( 'pre_http_request', $interrupt, 5, 3 );
+		try { Imajiner_AI_Jobs::run( $id ); } finally { remove_filter( 'pre_http_request', $interrupt, 5 ); }
+		self::assertCount( 1, $this->calls, 'A cancelled job must not contact the provider again for validation.' );
+		self::assertSame( 'cancelled', get_post_meta( $id, '_imajiner_job', true )['state'] );
+		self::assertSame( '', get_post_meta( $id, '_imajiner_result', true ) );
+		self::assertSame( $this->files, Imajiner_Template_Store::read( $this->path ) );
+	}
+
+	public function test_cancellation_stops_fallback_http(): void {
+		$settings = Imajiner_AI::get_settings();
+		$settings['fallback'] = array( 'provider' => 'groq', 'model' => 'mock-backup' );
+		Imajiner_AI::save_settings( $settings );
+		$this->responses[] = new WP_Error( 'mock_failure', 'Mock network failure' );
+		$id = $this->queued();
+		$interrupt = function ( $preempt, $args, $url ) use ( $id ) {
+			if ( false !== strpos( $url, '/chat/completions' ) ) $this->request( 'jobs/' . $id . '/cancel' );
+			return $preempt;
+		};
+		add_filter( 'pre_http_request', $interrupt, 5, 3 );
+		try { Imajiner_AI_Jobs::run( $id ); } finally { remove_filter( 'pre_http_request', $interrupt, 5 ); }
+		self::assertCount( 1, $this->calls, 'A cancelled job must not contact a fallback provider.' );
+		self::assertSame( 'cancelled', get_post_meta( $id, '_imajiner_job', true )['state'] );
+		self::assertSame( '', get_post_meta( $id, '_imajiner_result', true ) );
+	}
+
+	public function test_generic_job_request_timeout_uses_remaining_worker_budget(): void {
+		$handler = function ( $unused, $payload, $id ) {
+			$job = get_post_meta( $id, '_imajiner_job', true );
+			$job['started'] = time() - Imajiner_AI_Jobs::WORKER_LIMIT + 15;
+			update_post_meta( $id, '_imajiner_job', $job );
+			return Imajiner_AI::chat_result( array( array( 'role' => 'user', 'content' => 'Mock budget test' ) ), array( 'timeout' => 90 ) );
+		};
+		add_filter( 'imajiner_ai_job_handler_budget', $handler, 10, 3 );
+		$this->responses[] = array( 'choices' => array( array( 'message' => array( 'content' => 'OK' ) ) ) );
+		try {
+			$job = Imajiner_AI_Jobs::enqueue( 'budget', array() );
+			$this->jobs[] = $job['id'];
+			Imajiner_AI_Jobs::run( $job['id'] );
+			self::assertCount( 1, $this->calls );
+			self::assertGreaterThan( 0, $this->calls[0]['args']['timeout'] );
+			self::assertLessThanOrEqual( 15, $this->calls[0]['args']['timeout'] );
+			self::assertSame( 'complete', get_post_meta( $job['id'], '_imajiner_job', true )['state'] );
+			self::assertSame( $this->owner, get_current_user_id() );
+		} finally { remove_filter( 'imajiner_ai_job_handler_budget', $handler, 10 ); }
+	}
+
+	public function test_deadline_stops_generic_provider_requests_and_restores_context(): void {
+		$handler = function ( $unused, $payload, $id ) {
+			$job = get_post_meta( $id, '_imajiner_job', true );
+			$job['started'] = time() - Imajiner_AI_Jobs::WORKER_LIMIT;
+			update_post_meta( $id, '_imajiner_job', $job );
+			return Imajiner_AI::chat_result( array( array( 'role' => 'user', 'content' => 'Mock deadline test' ) ) );
+		};
+		add_filter( 'imajiner_ai_job_handler_deadline', $handler, 10, 3 );
+		try {
+			$job = Imajiner_AI_Jobs::enqueue( 'deadline', array() );
+			$this->jobs[] = $job['id'];
+			Imajiner_AI_Jobs::run( $job['id'] );
+			self::assertCount( 0, $this->calls );
+			$state = get_post_meta( $job['id'], '_imajiner_job', true );
+			self::assertSame( 'failed', $state['state'] );
+			self::assertSame( 'imajiner_job_timeout', $state['error'] );
+			self::assertSame( '', get_post_meta( $job['id'], '_imajiner_payload', true ) );
+			self::assertSame( $this->owner, get_current_user_id() );
+		} finally { remove_filter( 'imajiner_ai_job_handler_deadline', $handler, 10 ); }
+		$this->responses[] = array( 'choices' => array( array( 'message' => array( 'content' => 'OK' ) ) ) );
+		self::assertSame( 'OK', Imajiner_AI::chat( array( array( 'role' => 'user', 'content' => 'Mock outside-worker test' ) ) ) );
+		self::assertCount( 1, $this->calls );
+	}
+
+	public function test_worker_reads_cancellation_outside_its_metadata_cache(): void {
+		$handler = function ( $unused, $payload, $id ) {
+			global $wpdb;
+			$job = get_post_meta( $id, '_imajiner_job', true );
+			$job['state'] = 'cancelled';
+			// Simulate a different HTTP request; leave this worker's cache untouched.
+			$wpdb->update( $wpdb->postmeta, array( 'meta_value' => maybe_serialize( $job ) ), array( 'post_id' => $id, 'meta_key' => '_imajiner_job' ) );
+			return Imajiner_AI::chat_result( array( array( 'role' => 'user', 'content' => 'Mock external cancellation' ) ) );
+		};
+		add_filter( 'imajiner_ai_job_handler_external_cancel', $handler, 10, 3 );
+		try {
+			$job = Imajiner_AI_Jobs::enqueue( 'external_cancel', array() );
+			$this->jobs[] = $job['id'];
+			Imajiner_AI_Jobs::run( $job['id'] );
+			self::assertCount( 0, $this->calls );
+			self::assertSame( 'cancelled', get_post_meta( $job['id'], '_imajiner_job', true )['state'] );
+			self::assertSame( '', get_post_meta( $job['id'], '_imajiner_result', true ) );
+		} finally { remove_filter( 'imajiner_ai_job_handler_external_cancel', $handler, 10 ); }
+	}
+
+	public function test_overdue_handler_result_is_discarded_instead_of_completed(): void {
+		$result = array( 'mock_proposal' => 'must-be-discarded' );
+		$discarded = array();
+		$discard = function ( $type, $value, $owner ) use ( &$discarded ) { $discarded[] = array( $type, $value, $owner ); };
+		$handler = function ( $unused, $payload, $id ) use ( $result ) {
+			$job = get_post_meta( $id, '_imajiner_job', true );
+			$job['started'] = time() - Imajiner_AI_Jobs::WORKER_LIMIT;
+			update_post_meta( $id, '_imajiner_job', $job );
+			return $result;
+		};
+		add_filter( 'imajiner_ai_job_handler_overdue', $handler, 10, 3 );
+		add_action( 'imajiner_ai_job_discarded', $discard, 20, 3 );
+		try {
+			$job = Imajiner_AI_Jobs::enqueue( 'overdue', array() );
+			$this->jobs[] = $job['id'];
+			Imajiner_AI_Jobs::run( $job['id'] );
+			$state = get_post_meta( $job['id'], '_imajiner_job', true );
+			self::assertSame( 'failed', $state['state'] );
+			self::assertSame( 'imajiner_job_timeout', $state['error'] );
+			self::assertSame( '', get_post_meta( $job['id'], '_imajiner_result', true ) );
+			self::assertSame( array( array( 'overdue', $result, $this->owner ) ), $discarded );
+			self::assertFalse( Imajiner_AI_Jobs::can_accept( $job['id'] ) );
+		} finally {
+			remove_filter( 'imajiner_ai_job_handler_overdue', $handler, 10 );
+			remove_action( 'imajiner_ai_job_discarded', $discard, 20 );
+		}
+	}
+
 	public function test_atomic_lock_prevents_a_second_worker(): void {
 		$id = $this->queued();
 		add_option( 'imajiner_ai_worker_' . $id, time(), '', false );

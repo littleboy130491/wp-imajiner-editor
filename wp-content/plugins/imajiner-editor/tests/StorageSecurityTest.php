@@ -14,7 +14,18 @@ class Imajiner_Storage_Test_Transport extends Imajiner_Atomic_Direct_Filesystem 
 	public $link_type = 'l';
 	public $corrupt_move;
 	public $moves = array();
+	public $deny_mode_lookup = false;
+	public $omit_permissions = false;
+	public $ignore_chmod = false;
+	public $corrupt_move_mode;
 	public function wp_content_dir() { return trailingslashit( $this->root ); }
+	public function getchmod( $file ) {
+		if ( $this->deny_mode_lookup ) { throw new RuntimeException( 'FTP getchmod cannot resolve full paths.' ); }
+		return parent::getchmod( $file );
+	}
+	public function chmod( $file, $mode = false, $recursive = false ) {
+		return $this->ignore_chmod ? true : parent::chmod( $file, $mode, $recursive );
+	}
 	private function failing( $operation, $path ) {
 		return $this->fail && call_user_func( $this->fail, $operation, $path );
 	}
@@ -28,6 +39,10 @@ class Imajiner_Storage_Test_Transport extends Imajiner_Atomic_Direct_Filesystem 
 			$this->corrupt_move = null;
 			parent::put_contents( $destination, 'corrupt disposable transfer' );
 		}
+		if ( $result && $this->corrupt_move_mode === $destination ) {
+			$this->corrupt_move_mode = null;
+			parent::chmod( $destination, 0644 );
+		}
 		return $result;
 	}
 	public function delete( $file, $recursive = false, $type = false ) {
@@ -35,7 +50,17 @@ class Imajiner_Storage_Test_Transport extends Imajiner_Atomic_Direct_Filesystem 
 	}
 	public function dirlist( $path, $include_hidden = true, $recursive = false ) {
 		if ( $this->failing( 'list', $path ) ) { return false; }
-		$list = parent::dirlist( $path, $include_hidden, $recursive );
+		$deny_lookup = $this->deny_mode_lookup;
+		$this->deny_mode_lookup = false;
+		try {
+			$list = parent::dirlist( $path, $include_hidden, $recursive );
+		} finally {
+			$this->deny_mode_lookup = $deny_lookup;
+		}
+		if ( $this->omit_permissions && is_array( $list ) ) {
+			foreach ( $list as &$entry ) { unset( $entry['permsn'] ); }
+			unset( $entry );
+		}
 		if ( $this->link_name && is_array( $list ) && isset( $list[ $this->link_name ] ) ) {
 			$list[ $this->link_name ]['type'] = $this->link_type;
 			$list[ $this->link_name ]['islink'] = true;
@@ -248,6 +273,180 @@ final class StorageSecurityTest extends TestCase {
 		self::assertSame( $this->files['php'], file_get_contents( $this->path ) );
 	}
 
+	public function test_ftp_permissions_use_basename_listing_and_fail_closed_without_modes(): void {
+		$fs = $this->transport( true );
+		$remote = $fs->root . '/themes/' . get_stylesheet() . '/imajiner/' . basename( $this->path );
+		file_put_contents( $remote, 'disposable remote bytes' );
+		chmod( $remote, 0600 );
+		foreach ( array( 'ftpext', 'ftpsockets' ) as $method ) {
+			$fs->method = $method;
+			$fs->deny_mode_lookup = true;
+			self::assertSame( 0600, Imajiner_Filesystem::permissions( $this->path ) );
+			$fs->deny_mode_lookup = false;
+			self::assertTrue( Imajiner_Filesystem::write( $this->path, 'updated disposable bytes' ) );
+			self::assertSame( 0600, fileperms( $remote ) & 0777 );
+			$fs->omit_permissions = true;
+			self::assertSame( 'imajiner_permissions', Imajiner_Filesystem::write( $this->path, 'must not write' )->get_error_code() );
+			self::assertSame( 'updated disposable bytes', file_get_contents( $remote ) );
+			$fs->omit_permissions = false;
+		}
+	}
+
+	public function test_remote_permissions_are_verified_before_install_and_after_move(): void {
+		$fs = $this->transport( true );
+		$remote = $fs->root . '/themes/' . get_stylesheet() . '/imajiner/' . basename( $this->path );
+		file_put_contents( $remote, 'original disposable bytes' );
+		chmod( $remote, 0600 );
+		$previous_umask = umask( 0022 );
+		try {
+			$fs->ignore_chmod = true;
+			self::assertSame( 'imajiner_write_failed', Imajiner_Filesystem::write( $this->path, 'must not install' )->get_error_code() );
+			self::assertSame( 'original disposable bytes', file_get_contents( $remote ) );
+			self::assertSame( 0600, fileperms( $remote ) & 0777 );
+			$fs->ignore_chmod = false;
+			$fs->corrupt_move_mode = $remote;
+			self::assertSame( 'imajiner_write_failed', Imajiner_Filesystem::write( $this->path, 'must roll back' )->get_error_code() );
+			self::assertSame( 'original disposable bytes', file_get_contents( $remote ) );
+			self::assertSame( 0600, fileperms( $remote ) & 0777 );
+			self::assertSame( array(), glob( dirname( $remote ) . '/.imj-*' ) );
+		} finally {
+			umask( $previous_umask );
+		}
+	}
+
+	public function test_remote_endpoints_are_normalized_without_credentials_or_protocol_downgrade(): void {
+		foreach ( array( 'ftp://fixture.invalid:2121' => array( 'fixture.invalid', 2121 ), '[::1]:2121' => array( '::1', 2121 ) ) as $host => $expected ) {
+			$result = Imajiner_Filesystem::prepare_credentials( array( 'hostname' => $host ), 'ftpext' );
+			self::assertSame( $expected, array( $result['hostname'], $result['port'] ) );
+		}
+		self::assertSame( 2121, Imajiner_Filesystem::prepare_credentials( array( 'port' => '2121' ), 'ssh2' )['port'] );
+		foreach ( array( 'fixture.invalid:0', 'fixture.invalid:65536', 'ftp://user@fixture.invalid', 'fixture.invalid/path', "fixture.invalid\n", 'https://fixture.invalid', 'sftp://fixture.invalid', 'fixture.invalid?x=1' ) as $host ) {
+			self::assertSame( 'imajiner_filesystem_credentials', Imajiner_Filesystem::prepare_credentials( array( 'hostname' => $host ), 'ftpext' )->get_error_code() );
+		}
+		foreach ( array( 0, -1, 'bad-port', 65536, array() ) as $port ) {
+			self::assertInstanceOf( WP_Error::class, Imajiner_Filesystem::prepare_credentials( array( 'port' => $port ), 'ssh2' ) );
+		}
+		self::assertSame( 'fixture.invalid', Imajiner_Filesystem::prepare_credentials( array( 'hostname' => 'sftp://fixture.invalid' ), 'ssh2' )['hostname'] );
+		self::assertSame( 'imajiner_filesystem_tls', Imajiner_Filesystem::prepare_credentials( array( 'connection_type' => 'ftps' ), 'ftpsockets' )->get_error_code() );
+		self::assertSame( 'imajiner_filesystem_tls', Imajiner_Filesystem::prepare_credentials( array( 'hostname' => 'ftps://fixture.invalid' ), 'ftpsockets' )->get_error_code() );
+		if ( function_exists( 'ftp_ssl_connect' ) ) {
+			self::assertSame( 'ftps', Imajiner_Filesystem::prepare_credentials( array( 'hostname' => 'ftps://fixture.invalid' ), 'ftpext' )['connection_type'] );
+		}
+		$constants = 'define("FTP_HOST","ftps://fixture.invalid:2121"); define("FTP_SSL",true); $c=Imajiner_Filesystem::prepare_credentials(array("hostname"=>"fixture.invalid"),"ftpext"); echo wp_json_encode(array($c["hostname"],$c["port"],$c["connection_type"]));';
+		if ( function_exists( 'ftp_ssl_connect' ) ) {
+			self::assertSame( '["fixture.invalid",2121,"ftps"]', $this->subprocess( $constants ) );
+		}
+		self::assertSame( 'imajiner_filesystem_tls', $this->subprocess( 'define("FTP_SSL",true); define("FS_METHOD","ftpsockets"); echo Imajiner_Filesystem::init()->get_error_code();' ) );
+		self::assertSame( 'imajiner_filesystem_tls', $this->subprocess( 'define("FS_METHOD","ftpext"); echo Imajiner_Filesystem::connect(array("connection_type"=>"ftps"))->get_error_code();', 'ftp_ssl_connect' ) );
+	}
+
+	public function test_socket_transport_uses_wordpress_stream_client_and_removes_selection_filter(): void {
+		$method = static function () { return 'ftpsockets'; };
+		add_filter( 'filesystem_method', $method );
+		try {
+			self::assertSame( 'imajiner_filesystem_credentials', Imajiner_Filesystem::connect( array() )->get_error_code() );
+			global $wp_filesystem;
+			self::assertInstanceOf( WP_Filesystem_imajiner_ftpsockets::class, $wp_filesystem );
+			self::assertInstanceOf( Imajiner_FTP_Pure::class, $wp_filesystem->ftp );
+			self::assertSame( 'ftpsockets', $wp_filesystem->method );
+			self::assertFalse( has_filter( 'filesystem_method', array( Imajiner_Filesystem::class, 'ftp_method' ) ) );
+			self::assertSame( 'ftpsockets', get_filesystem_method( array(), WP_CONTENT_DIR ) );
+		} finally {
+			remove_filter( 'filesystem_method', $method );
+		}
+	}
+
+	public function test_stream_ftp_listing_retries_optional_flags_only_once(): void {
+		$ftp = new class() extends Imajiner_FTP_Pure {
+			public $commands = array();
+			public $responses = array();
+			public function _list( $arg = '', $cmd = 'LIST', $function = '_list' ) {
+				$this->commands[] = array( $arg, $cmd );
+				return array_shift( $this->responses );
+			}
+		};
+		$ftp->responses = array( false, array() );
+		self::assertSame( array(), $ftp->rawlist( '/fixture', '-la' ) );
+		self::assertSame( array( array( ' -la /fixture', 'LIST' ), array( ' /fixture', 'LIST' ) ), $ftp->commands );
+		$ftp->commands = array();
+		$ftp->responses = array( false, false );
+		self::assertFalse( $ftp->rawlist( '/fixture', '-la' ) );
+		self::assertCount( 2, $ftp->commands );
+		$ftp->commands = array();
+		$ftp->responses = array( array() );
+		self::assertSame( array(), $ftp->rawlist( '/fixture', '-la' ) );
+		self::assertCount( 1, $ftp->commands, 'An empty directory is not a failed listing.' );
+		$ftp->commands = array();
+		$ftp->responses = array( false );
+		self::assertFalse( $ftp->rawlist( '/fixture' ) );
+		self::assertCount( 1, $ftp->commands );
+	}
+
+	public function test_extension_empty_directory_recovery_does_not_hide_listing_errors(): void {
+		$fs = new class( array() ) extends WP_Filesystem_imajiner_ftpext {
+			public $listing = false;
+			public $verified_empty = false;
+			protected function core_listing( $path, $include_hidden, $recursive ) { return $this->listing; }
+			protected function empty_directory( $path ) { return $this->verified_empty; }
+		};
+		self::assertFalse( $fs->dirlist( '/fixture' ) );
+		$fs->verified_empty = true;
+		self::assertSame( array(), $fs->dirlist( '/fixture' ) );
+		$fs->verified_empty = false;
+		$fs->listing = array();
+		self::assertSame( array(), $fs->dirlist( '/fixture' ) );
+		$fs->listing = array( 'fixture.php' => array( 'type' => 'f', 'permsn' => '0600' ) );
+		self::assertSame( $fs->listing, $fs->dirlist( '/fixture' ) );
+		self::assertSame( 'ftpext', $fs->method );
+		$this->reset_client();
+		add_filter( 'filesystem_method', array( $this, 'remote_method' ) );
+		self::assertSame( 'imajiner_filesystem_credentials', Imajiner_Filesystem::connect( array() )->get_error_code() );
+		global $wp_filesystem;
+		self::assertInstanceOf( WP_Filesystem_imajiner_ftpext::class, $wp_filesystem );
+		self::assertFalse( has_filter( 'filesystem_method', array( Imajiner_Filesystem::class, 'ftp_method' ) ) );
+	}
+
+	public function test_ftp_mapped_root_and_ancestors_must_not_be_links(): void {
+		$fs = $this->transport( true );
+		$fs->link_type = 'd';
+		foreach ( array( basename( $fs->root ), basename( dirname( $fs->root ) ) ) as $name ) {
+			$fs->link_name = $name;
+			self::assertSame( 'imajiner_path', Imajiner_Filesystem::write( $this->path, 'must not escape' )->get_error_code() );
+		}
+		$fs->link_name = null;
+		$fs->fail = static function ( $operation, $path ) use ( $fs ) { return 'list' === $operation && dirname( $fs->root ) === $path; };
+		self::assertSame( 'imajiner_remote_link_check', Imajiner_Filesystem::write( $this->path, 'must not write' )->get_error_code() );
+		self::assertSame( $this->files['php'], file_get_contents( $this->path ) );
+	}
+
+	public function test_credential_screen_rejects_ftps_on_socket_transport_without_storing_credentials(): void {
+		$post = $_POST;
+		$request = $_REQUEST;
+		$server = $_SERVER;
+		$method = static function () { return 'ftpsockets'; };
+		$credentials = static function () { return array( 'connection_type' => 'ftps', 'hostname' => 'fixture.invalid' ); };
+		add_filter( 'filesystem_method', $method );
+		add_filter( 'request_filesystem_credentials', $credentials );
+		try {
+			$_SERVER['HTTPS'] = 'on';
+			$_SERVER['REQUEST_METHOD'] = 'POST';
+			$_POST = array( '_fs_nonce' => wp_create_nonce( 'filesystem-credentials' ) );
+			$_REQUEST = $_POST;
+			ob_start();
+			try { Imajiner_Filesystem_Credentials::screen(); } finally { $html = ob_get_clean(); }
+			self::assertStringContainsString( 'Encrypted FTP requires', $html );
+			self::assertStringNotContainsString( 'Connected. Return to the editor', $html );
+			self::assertSame( '', get_user_meta( self::$admin, Imajiner_Filesystem_Credentials::META, true ) );
+			self::assertFalse( has_filter( 'filesystem_method', array( Imajiner_Filesystem::class, 'ftp_method' ) ) );
+		} finally {
+			remove_filter( 'filesystem_method', $method );
+			remove_filter( 'request_filesystem_credentials', $credentials );
+			$_POST = $post;
+			$_REQUEST = $request;
+			$_SERVER = $server;
+		}
+	}
+
 	public function test_rename_delete_collisions_stale_hashes_and_history(): void {
 		$new = str_replace( '.php', '-renamed.php', $this->path );
 		$this->track_pair( $new );
@@ -378,10 +577,10 @@ final class StorageSecurityTest extends TestCase {
 		self::assertSame( '', get_user_meta( self::$admin, Imajiner_Filesystem_Credentials::META, true ) );
 	}
 
-	private function subprocess( $source ) {
+	private function subprocess( $source, $disabled_functions = '' ) {
 		$prefix = "define('DISABLE_WP_CRON',true); require " . var_export( ABSPATH . 'wp-load.php', true ) . "; require_once " . var_export( dirname( __DIR__ ) . '/includes/class-imajiner-filesystem.php', true ) . ';';
 		$output = array();
-		exec( escapeshellarg( PHP_BINARY ) . ' -d mysqli.default_socket=/var/run/mysqld/mysqld.sock -r ' . escapeshellarg( $prefix . $source ), $output, $status );
+		exec( escapeshellarg( PHP_BINARY ) . ' -d mysqli.default_socket=/var/run/mysqld/mysqld.sock -d disable_functions=' . escapeshellarg( $disabled_functions ) . ' -r ' . escapeshellarg( $prefix . $source ), $output, $status );
 		self::assertSame( 0, $status );
 		return implode( "\n", $output );
 	}

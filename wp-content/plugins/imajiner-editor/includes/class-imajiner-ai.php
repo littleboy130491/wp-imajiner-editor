@@ -602,6 +602,14 @@ class Imajiner_AI {
 	 * @return array|WP_Error Decoded JSON.
 	 */
 	private static function request( $provider, $method, $path, $body, $timeout, array $extra = array() ) {
+		$timeout = apply_filters( 'imajiner_ai_request_timeout', $timeout, array( 'timeout' => $timeout ) );
+		if ( is_wp_error( $timeout ) ) {
+			return $timeout;
+		}
+		if ( ! is_numeric( $timeout ) || $timeout < 1 ) {
+			return new WP_Error( 'imajiner_ai_deadline', __( 'The AI request reached its time limit. Try again.', 'imajiner-editor' ), array( 'status' => 504 ) );
+		}
+		$timeout = min( 90, (int) $timeout );
 		$key = self::get_api_key( $provider );
 		if ( '' === $key ) {
 			return new WP_Error( 'imajiner_ai_no_key', __( 'No API key is set for this provider.', 'imajiner-editor' ), array( 'status' => 400 ) );

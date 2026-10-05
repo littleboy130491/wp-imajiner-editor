@@ -106,11 +106,16 @@ function imajiner_part_is_visible( array $part ) {
 	}
 	if ( $part['post_types'] ) {
 		$types = is_singular() ? array( get_post_type( get_queried_object_id() ) ) : (array) get_query_var( 'post_type' );
+		if ( in_array( 'any', $types, true ) || ( is_search() && ! array_filter( $types ) ) ) {
+			$types = array_values( get_post_types( is_search() ? array( 'exclude_from_search' => false ) : array( 'public' => true ) ) );
+		}
 		if ( is_home() ) {
 			$types = array( 'post' );
 		} elseif ( is_category() || is_tag() || is_tax() ) {
 			$taxonomy = get_taxonomy( get_queried_object()->taxonomy );
-			$types = $taxonomy ? $taxonomy->object_type : array();
+			$types = $taxonomy ? ( array_filter( $types ) ? array_intersect( $types, $taxonomy->object_type ) : $taxonomy->object_type ) : array();
+		} elseif ( ( is_author() || is_date() ) && ! array_filter( $types ) ) {
+			$types = array( 'post' );
 		}
 		if ( ! array_intersect( $part['post_types'], $types ) ) {
 			return false;

@@ -151,8 +151,10 @@ class Imajiner_Builder {
 		$posted    = isset( $_POST['locations'] ) && is_array( $_POST['locations'] ) ? wp_unslash( $_POST['locations'] ) : array();
 		$hashes    = isset( $_POST['hashes'] ) && is_array( $_POST['hashes'] ) ? wp_unslash( $_POST['hashes'] ) : array();
 		$conditions = isset( $_POST['conditions'] ) && is_array( $_POST['conditions'] ) ? wp_unslash( $_POST['conditions'] ) : array();
+		$parts       = imajiner_get_parts();
+		$part_posted = isset( $_POST['parts'] ) && is_array( $_POST['parts'] ) ? wp_unslash( $_POST['parts'] ) : array();
 		$displayed = $templates;
-		foreach ( imajiner_get_parts() as $slug => $part ) {
+		foreach ( $parts as $slug => $part ) {
 			$displayed[ 'parts/' . $slug ] = $part;
 		}
 		// Check all displayed child files before changing any assignment.
@@ -166,6 +168,17 @@ class Imajiner_Builder {
 				self::redirect_with( 'error', __( 'A template or stylesheet changed. Reload before saving locations.', 'imajiner-editor' ) );
 			}
 		}
+		foreach ( $parts as $slug => $part ) {
+			if ( ! isset( $part_posted[ $slug ] ) ) {
+				continue;
+			}
+			$settings = isset( $conditions[ $slug ] ) && is_array( $conditions[ $slug ] ) ? $conditions[ $slug ] : array();
+			$settings['location'] = $part_posted[ $slug ];
+			$headers = self::part_settings_headers( $settings );
+			if ( is_wp_error( $headers ) ) {
+				self::redirect_with( 'error', $headers->get_error_message() );
+			}
+		}
 		foreach ( imajiner_template_locations() as $location => $label ) {
 			$key = isset( $posted[ $location ] ) ? sanitize_text_field( $posted[ $location ] ) : '';
 			if ( '' !== $key && isset( $templates[ $key ] ) ) {
@@ -174,8 +187,6 @@ class Imajiner_Builder {
 		}
 		$changed = self::assign_locations( $wanted, array_keys( imajiner_template_locations() ), $hashes );
 
-		$parts       = imajiner_get_parts();
-		$part_posted = isset( $_POST['parts'] ) && is_array( $_POST['parts'] ) ? wp_unslash( $_POST['parts'] ) : array();
 		// phpcs:enable
 		foreach ( $parts as $slug => $part ) {
 			if ( ! isset( $part_posted[ $slug ] ) ) {
@@ -257,15 +268,7 @@ class Imajiner_Builder {
 		return Imajiner_Template_Store::write( $path, null === $hash ? Imajiner_Template_Store::hash( $files ) : $hash, array_merge( $files, array( 'php' => $php ) ), $note );
 	}
 
-	/** Validated portable condition headers, written together in one revision. */
-	public static function save_part_settings( $key, $hash, array $settings ) {
-		if ( ! Imajiner_Editor::user_can_edit_templates() || 0 !== strpos( $key, 'parts/' ) ) {
-			return new WP_Error( 'imajiner_forbidden', __( 'You are not allowed to change part settings.', 'imajiner-editor' ) );
-		}
-		$path = Imajiner_Template_Manager::path( $key );
-		if ( is_wp_error( $path ) ) {
-			return $path;
-		}
+	private static function part_settings_headers( array $settings ) {
 		$location = isset( $settings['location'] ) ? $settings['location'] : '';
 		if ( ! is_string( $location ) || ( '' !== $location && ! isset( imajiner_part_locations()[ $location ] ) ) ) {
 			return new WP_Error( 'imajiner_condition', __( 'Unknown part location.', 'imajiner-editor' ) );
@@ -283,6 +286,22 @@ class Imajiner_Builder {
 				}
 			}
 			$headers[ $header ] = implode( ', ', array_unique( $values ) );
+		}
+		return $headers;
+	}
+
+	/** Validated portable condition headers, written together in one revision. */
+	public static function save_part_settings( $key, $hash, array $settings ) {
+		if ( ! Imajiner_Editor::user_can_edit_templates() || 0 !== strpos( $key, 'parts/' ) ) {
+			return new WP_Error( 'imajiner_forbidden', __( 'You are not allowed to change part settings.', 'imajiner-editor' ) );
+		}
+		$path = Imajiner_Template_Manager::path( $key );
+		if ( is_wp_error( $path ) ) {
+			return $path;
+		}
+		$headers = self::part_settings_headers( $settings );
+		if ( is_wp_error( $headers ) ) {
+			return $headers;
 		}
 		$files = Imajiner_Template_Store::read( $path );
 		if ( is_wp_error( $files ) ) {

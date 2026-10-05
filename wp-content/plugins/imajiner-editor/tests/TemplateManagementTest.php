@@ -22,7 +22,12 @@ class WP_Filesystem_imjtemplatefault extends WP_Filesystem_Direct {
 	}
 
 	public function put_contents( $file, $contents, $mode = false ) {
-		return in_array( $file, self::$failed_writes, true ) ? false : parent::put_contents( $file, $contents, $mode );
+		foreach ( self::$failed_writes as $path ) {
+			if ( $file === $path || ( dirname( $file ) === dirname( $path ) && 0 === strpos( basename( $file ), '.imj-' ) && pathinfo( $file, PATHINFO_EXTENSION ) === pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
+				return false;
+			}
+		}
+		return parent::put_contents( $file, $contents, $mode );
 	}
 }
 
@@ -177,6 +182,11 @@ final class TemplateManagementTest extends TestCase {
 	public function testTransportFailuresRestorePairsAndReportFailedRollback(): void {
 		$transport = function () { return 'imjtemplatefault'; };
 		$previous = isset( $GLOBALS['wp_filesystem'] ) ? $GLOBALS['wp_filesystem'] : null;
+		$client = property_exists( Imajiner_Filesystem::class, 'client' ) ? new ReflectionProperty( Imajiner_Filesystem::class, 'client' ) : null;
+		if ( $client ) {
+			$client->setAccessible( true );
+		}
+		$previous_client = $client ? $client->getValue() : null;
 		try {
 			foreach ( array( 'rename', 'delete', 'rollback' ) as $operation ) {
 				remove_filter( 'filesystem_method', $transport );
@@ -198,7 +208,11 @@ final class TemplateManagementTest extends TestCase {
 					WP_Filesystem_imjtemplatefault::$failed_writes = array( Imajiner_Template_Store::css_path( $f['path'] ) );
 				}
 				$GLOBALS['wp_filesystem'] = new WP_Filesystem_imjtemplatefault( false );
-				add_filter( 'filesystem_method', $transport );
+				if ( $client ) {
+					$client->setValue( null, $GLOBALS['wp_filesystem'] );
+				} else {
+					add_filter( 'filesystem_method', $transport );
+				}
 				$result = Imajiner_Template_Manager::manage( $request );
 				$this->assertInstanceOf( WP_Error::class, $result );
 				$this->assertSame( $f['files']['php'], file_get_contents( $f['path'] ) );
@@ -220,6 +234,9 @@ final class TemplateManagementTest extends TestCase {
 			WP_Filesystem_imjtemplatefault::$failed_deletes = array();
 			WP_Filesystem_imjtemplatefault::$failed_writes = array();
 			$GLOBALS['wp_filesystem'] = $previous;
+			if ( $client ) {
+				$client->setValue( null, $previous_client );
+			}
 		}
 	}
 
@@ -374,6 +391,62 @@ final class TemplateManagementTest extends TestCase {
 		$this->assertSame( '', ob_get_clean() );
 	}
 
+	public function testTaxonomyPostTypeConditionsRespectTheConstrainedQuery(): void {
+		register_taxonomy_for_object_type( 'imj_group', 'page' );
+		$term = wp_insert_term( 'Disposable multi-type term ' . wp_generate_uuid4(), 'imj_group' );
+		$this->terms[] = $term['term_id'];
+		$item = $this->post();
+		$page = $this->post( 'page' );
+		wp_set_object_terms( $item, $term['term_id'], 'imj_group' );
+		wp_set_object_terms( $page, $term['term_id'], 'imj_group' );
+		$part = $this->fixture( '', true, ' * Part Post Types: imj_item' );
+		$args = array( 'post_type' => 'page', 'tax_query' => array( array( 'taxonomy' => 'imj_group', 'terms' => array( $term['term_id'] ) ) ) );
+		$this->query( $args );
+		$this->assertTrue( is_tax( 'imj_group' ) );
+		ob_start();
+		$this->assertFalse( imajiner_part( $part['slug'] ) );
+		$this->assertSame( '', ob_get_clean() );
+		$this->assertFalse( wp_style_is( 'imajiner-part-' . $part['slug'], 'enqueued' ) );
+		$args['post_type'] = 'imj_item';
+		$this->query( $args );
+		ob_start();
+		$this->assertTrue( imajiner_part( $part['slug'] ) );
+		$this->assertStringContainsString( 'Fixture markup', ob_get_clean() );
+	}
+
+	public function testSearchPostTypeConditionsExpandAnyWithoutEnablingOtherTypes(): void {
+		$this->post( 'post' );
+		$part = $this->fixture( '', true, ' * Part Post Types: post' );
+		$this->query( array( 's' => 'Disposable template fixture', 'post_type' => 'any' ) );
+		$this->assertTrue( is_search() );
+		ob_start();
+		$this->assertTrue( imajiner_part( $part['slug'] ) );
+		$this->assertStringContainsString( 'Fixture markup', ob_get_clean() );
+		$this->query( array( 's' => 'Disposable template fixture', 'post_type' => 'page' ) );
+		ob_start();
+		$this->assertFalse( imajiner_part( $part['slug'] ) );
+		$this->assertSame( '', ob_get_clean() );
+	}
+
+	public function testAuthorAndDateConditionsUseTheDefaultPostType(): void {
+		$post = $this->post( 'post' );
+		$post_part = $this->fixture( '', true, ' * Part Post Types: post' );
+		$page_part = $this->fixture( '', true, ' * Part Post Types: page' );
+		$date = explode( '-', substr( get_post_field( 'post_date', $post ), 0, 10 ) );
+		foreach ( array( array( 'author' => $this->user ), array( 'year' => $date[0], 'monthnum' => $date[1], 'day' => $date[2] ) ) as $args ) {
+			$this->query( $args );
+			$this->assertTrue( is_author() || is_date() );
+			$this->assertSame( '', get_query_var( 'post_type' ) );
+			ob_start();
+			$this->assertTrue( imajiner_part( $post_part['slug'] ) );
+			$this->assertStringContainsString( 'Fixture markup', ob_get_clean() );
+			ob_start();
+			$this->assertFalse( imajiner_part( $page_part['slug'] ) );
+			$this->assertSame( '', ob_get_clean() );
+			$this->assertFalse( wp_style_is( 'imajiner-part-' . $page_part['slug'], 'enqueued' ) );
+		}
+	}
+
 	public function testLateExplicitPartPrintsItsActualLinkOnlyOnceAfterHeadAndFooter(): void {
 		$f = $this->fixture( '', true );
 		$unused = $this->fixture( '', true );
@@ -405,6 +478,35 @@ final class TemplateManagementTest extends TestCase {
 		$this->assertStringContainsString( 'class="site-header"', $output );
 		$this->assertStringContainsString( 'class="site-footer"', $output );
 		$this->assertStringNotContainsString( 'Fixture markup', $output );
+	}
+
+	public function testInvalidPartConditionsDoNotPartiallySaveTemplateLocations(): void {
+		$template = $this->fixture( 'single:post' );
+		$part = $this->fixture( 'header', true );
+		$hashes = array();
+		$displayed = imajiner_get_templates();
+		foreach ( imajiner_get_parts() as $slug => $file ) {
+			$displayed[ 'parts/' . $slug ] = $file;
+		}
+		foreach ( $displayed as $key => $file ) {
+			$path = Imajiner_Template_Manager::path( $key );
+			if ( ! is_wp_error( $path ) && $path === $file['file'] ) {
+				$hashes[ $key ] = Imajiner_Template_Store::hash( Imajiner_Template_Store::read( $path ) );
+			}
+		}
+		$request = array(
+			'_wpnonce' => wp_create_nonce( 'imajiner_save_locations' ),
+			'locations' => array( 'archive' => $template['key'] ),
+			'parts' => array( $part['slug'] => 'footer' ),
+			'hashes' => $hashes,
+			'conditions' => array( $part['slug'] => array( 'include' => array( 'not-a-valid-location' ) ) ),
+		);
+		$this->front_end_request( 'wp_set_current_user(' . $this->user . '); $_SERVER["REQUEST_METHOD"]="POST"; $_POST=' . var_export( $request, true ) . '; $_REQUEST=$_POST; Imajiner_Builder::save_locations();' );
+		$this->assertSame( $template['files'], Imajiner_Template_Store::read( $template['path'] ) );
+		$this->assertSame( $part['files'], Imajiner_Template_Store::read( $part['path'] ) );
+		$this->assertCount( 0, Imajiner_Template_Store::get_revisions( $template['path'] ) );
+		$this->assertCount( 0, Imajiner_Template_Store::get_revisions( $part['path'] ) );
+		delete_transient( 'imajiner_builder_notice_' . $this->user );
 	}
 
 	public function testManagerFormsHaveIndependentConfirmationNonceAndHashes(): void {
