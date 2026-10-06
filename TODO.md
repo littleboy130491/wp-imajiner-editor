@@ -21,7 +21,7 @@ Resume with the full WordPress PHPUnit command in `wp-content/plugins/imajiner-e
 - [x] **P2** "Edit with AI" on a selected section or element (e.g. "make this a 3-column grid"), returning only the changed section
 - [x] **P2** Long requests: generation can exceed the 120 s HTTP timeout and PHP's `max_execution_time`. Use streaming or a background job with progress in the UI
 - [ ] **P2** Test every provider with a real key: OpenRouter, OpenAI, Claude, Gemini, xAI, Meta (documented `api.meta.ai/v1`/Bearer/models contracts verified in mocks; real account calls pending), Mistral, DeepSeek, Groq
-- [ ] **P3** Complete authenticated verification of every "Get a key" destination. Claude and Meta use documented live portals; OpenRouter/Claude/Gemini/Meta/Groq public checks pass. OpenAI/xAI/DeepSeek return 403 to automation; Mistral redirects loop in this environment
+- [ ] **P3** Complete authenticated verification of every "Get a key" destination. All 9 destinations publicly verified on `devin/1791260150-e2e-acceptance` (2026-10-06): OpenRouter/Claude/Gemini/Meta/Groq return 200; Mistral redirects to its Ory auth login (`v2.auth.mistral.ai`); OpenAI/xAI/DeepSeek block automation (Cloudflare 403 / CloudFront 202) but each renders the real sign-in page in a desktop browser. Authenticated key-page verification still needs logged-in accounts
 - [x] **P3** Log AI usage per request (provider, model, tokens, which model answered after a fallback)
 
 ## Editor
