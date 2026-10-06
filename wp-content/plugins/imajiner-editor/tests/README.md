@@ -40,8 +40,12 @@ Prerequisites: disposable WordPress 6.7.4, active plugin + child theme, WP-CLI, 
 ```sh
 wp config set WP_ENVIRONMENT_TYPE local
 wp config set IMAJINER_E2E_TEST_SITE true --raw
-# Serve from WP root with concurrent workers for signed background loopbacks:
-PHP_CLI_SERVER_WORKERS=4 php -S localhost:8097 -t .
+# Serve from WP root with the single-process built-in server. Do NOT set
+# PHP_CLI_SERVER_WORKERS for browser runs: worker mode leaves Chromium's
+# keep-alive requests unread (every page.goto times out). The single
+# process still executes signed background loopbacks — they queue and run
+# as soon as the current request finishes.
+php -S localhost:8097 -t .
 ```
 
 In a separate shell, supply `IMAJINER_E2E_URL` (e.g. `http://localhost:8097`), `IMAJINER_E2E_WP_ROOT` (absolute WP root), `IMAJINER_E2E_USERNAME` and `IMAJINER_E2E_PASSWORD` from your local environment/secrets. Optional `IMAJINER_E2E_WP_CLI` is the WP-CLI executable. Credentials are never embedded in the repository. Then:
