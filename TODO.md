@@ -84,7 +84,7 @@ Resume with the full WordPress PHPUnit command in `wp-content/plugins/imajiner-e
 - [x] PHP 7.4 runtime execution of the full WordPress suite: the PHP 7.4 CI job passed on code checkpoint `20f539ec6de0474af64879c1f756e399814f8468`; syntax parsing alone is insufficient
 - [x] [Existing PR](https://github.com/littleboy130491/wp-imajiner-editor/pull/1): both PHP 7.4/8.1 CI jobs passed on code checkpoint `20f539ec6de0474af64879c1f756e399814f8468` (job IDs `111694831023` / `111694830507`); CI runs discovery but does not execute Playwright browsers
 - [ ] Real paid-provider requests, model-list calls and authenticated key portal checks; no keys provisioned
-- [ ] Live FTP/SSH host credential/write/rollback validation; only mocked transports and direct local I/O exercised
+- [x] Live FTP/SSH host credential/write/rollback validation on `devin/1791260150-e2e-acceptance` (2026-10-06): real vsftpd (ftpext + ftpsockets) and OpenSSH (ssh2 password and key auth) hosts on loopback, credentials via wp-config `FS_METHOD`/`FTP_*` constants — no mocks. Per transport: `Imajiner_Filesystem` write/read-back/rewrite(backup+move)/permissions/no stray `.imj-*`/out-of-bounds refusal/delete (7 checks each) plus `Imajiner_Template_Store` create/read/hash/409 stale-hash conflict/write-with-revision/rename/delete/no-strays (8 checks each) — all passed, site reverted to `direct` afterwards. Failure-path rollback remains covered by the injected-transport suite; live runs verify the real transports end to end.
 - [ ] Optional independent pre-client security audit; no external audit is claimed
 
 ## Known implementation limits to retain in deployment docs
