@@ -15,7 +15,7 @@ test( 'create, open, edit, stage, undo, save and review/restore a private revisi
 	await form.locator( 'input[name="name"]' ).fill( name );
 	await form.getByRole( 'button', { name: 'Create template', exact: true } ).click();
 	await expect( page.locator( '#imj-preview' ) ).toBeVisible();
-	await expect.poll( () => page.evaluate( () => window.imajinerEditor.getState().template ) ).toBeTruthy();
+	await expect.poll( () => page.evaluate( () => window.imajinerEditor?.getState?.().template ) ).toBeTruthy();
 	const preview = page.frameLocator( '#imj-preview' );
 	const heading = preview.locator( 'h1[data-imj-id]' ).first();
 	const original = await heading.innerText();
@@ -28,11 +28,11 @@ test( 'create, open, edit, stage, undo, save and review/restore a private revisi
 	await expect( heading ).toHaveText( 'Disposable edited heading' );
 	await page.locator( '#imj-add-section' ).click();
 	await expect( page.locator( '#imj-status' ) ).toContainText( 'Unsaved changes staged' );
-	const sectionCount = await page.evaluate( () => window.imajinerEditor.getState().structure.tree.filter( ( node ) => node.type === 'section' ).length );
+	const sectionCount = await page.evaluate( () => window.imajinerEditor?.getState?.().structure.tree.filter( ( node ) => node.type === 'section' ).length );
 	await page.locator( '#imj-undo' ).click();
-	await expect.poll( () => page.evaluate( () => window.imajinerEditor.getState().structure.tree.filter( ( node ) => node.type === 'section' ).length ) ).toBe( sectionCount - 1 );
+	await expect.poll( () => page.evaluate( () => window.imajinerEditor?.getState?.().structure.tree.filter( ( node ) => node.type === 'section' ).length ) ).toBe( sectionCount - 1 );
 	await page.locator( '#imj-redo' ).click();
-	await expect.poll( () => page.evaluate( () => window.imajinerEditor.getState().structure.tree.filter( ( node ) => node.type === 'section' ).length ) ).toBe( sectionCount );
+	await expect.poll( () => page.evaluate( () => window.imajinerEditor?.getState?.().structure.tree.filter( ( node ) => node.type === 'section' ).length ) ).toBe( sectionCount );
 	await page.locator( '#imj-save' ).click();
 	await expect( page.locator( '#imj-status' ) ).toHaveText( 'Saved' );
 	await page.reload();
@@ -50,7 +50,7 @@ test( 'background AI generation uses deterministic WordPress provider and explic
 	await page.locator( '#imj-ai-prompt' ).fill( 'Create a disposable heading and token-based spacing.' );
 	await page.locator( '#imj-ai-generate' ).click();
 	await expect( page.locator( '#imj-ai-review' ) ).toBeVisible();
-	await expect( page.locator( '#imj-ai-comparison textarea' ).last() ).toHaveValue( /E2E generated heading/ );
+	await expect( page.locator( '#imj-ai-comparison textarea[aria-label="After — PHP"]' ) ).toHaveValue( /E2E generated heading/ );
 	await expect( page.locator( '#imj-ai-accept' ) ).toBeEnabled();
 	await page.locator( '#imj-ai-accept' ).click();
 	await expect( page.locator( '#imj-preview' ) ).toBeVisible();
